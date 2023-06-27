@@ -7,20 +7,22 @@ variable "sa_json_google" {
     sensitive = true
 }
 
-variable "sa_json_gcs" {
-    type = string
-    sensitive = true
-}
-
 variable "dataset_names" {
     description = "BQ Datasets"
     default = {
         "revolut" = {
-            # project     = "af-finanzen"
             description = "Revolut transactions"
-            #location    = "europe-west6"
-            #delete_contents_on_destroy  = false
-            #default_table_expiration_ms = null
+        }
+    }
+}
+
+variable "table_names" {
+    description = "BQ Tables"
+    default = {
+        "transactions" = {
+            description = "Revolut transactions"
+            dataset_id = "revolut"
+            schema = "bq-schemas/revolut.transactions.json"
         }
     }
 }
