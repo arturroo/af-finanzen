@@ -17,7 +17,6 @@ resource "google_bigquery_table" "table" {
     # table_id    = try(each.value.name, each.key)
     table_id    = each.key
     description = try(each.value["description"], null)
-    location    = try(each.value["location"], "europe-west6")
     clustering  = try(each.value["clustering"], null)
     schema      = file(each.value["schema"])
     deletion_protection  = try(each.value["deletion_protection"], null)
