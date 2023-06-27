@@ -2,6 +2,15 @@ variable "project_id" {
     default = ""
 }
 
+variable "sa_json_google" {
+    type = string
+    sensitive = true
+}
+
+variable "sa_json_gcs" {
+    type = string
+    sensitive = true
+}
 
 variable "dataset_names" {
     description = "BQ Datasets"
