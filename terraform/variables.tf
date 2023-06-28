@@ -7,22 +7,42 @@ variable "sa_json_google" {
     sensitive = true
 }
 
-variable "dataset_names" {
-    description = "BQ Datasets"
+variable "buckets" {
+    description = "Google Storage buckets"
     default = {
-        "revolut" = {
-            description = "Revolut transactions"
+        "banks" = {
         }
     }
 }
 
-variable "table_names" {
-    description = "BQ Tables"
+
+variable "datasets" {
+    description = "BigQuery Datasets"
     default = {
-        "transactions" = {
-            description = "Revolut transactions"
-            dataset_id = "revolut"
-            schema = "bq-schemas/revolut.transactions.json"
+        "banks" = {
+            description = "Raw data from banks"
         }
+    }
+}
+
+variable "internal_tables" {
+    description = "BigQuery internal tables"
+    default = {
+        # "revolut" = {
+        #     description = "Revolut transactions"
+        #     dataset_id = "banks"
+        #     schema = "bq-schemas/banks.revolut.json"
+        # }
+    }
+}
+
+variable "external_tables" {
+    description = "BigQuery external tables"
+    default = {
+        # "ubs" = {
+        #     description = "UBS transactions"
+        #     dataset_id = "banks"
+        #     schema = "bq-schemas/banks.ubs.json"
+        # }
     }
 }

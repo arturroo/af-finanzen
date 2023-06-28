@@ -1,0 +1,54 @@
+[
+  { "name": "Kontonummer",
+    "type": "string",
+    "mode": "nullable"
+  },
+  { "name": "Kartennummer",
+    "type": "string",
+    "mode": "nullable"
+  },
+  { "name": "Inhaber",
+    "type": "string",
+    "mode": "nullable"
+  },
+  { "name": "Einkaufsdatum",
+    "type": "string",
+    "mode": "nullable"
+  },
+  { "name": "Buchungstext",
+    "type": "string",
+    "mode": "nullable"
+  },
+  { "name": "Branche",
+    "type": "string",
+    "mode": "nullable"
+  },
+  { "name": "Betrag",
+    "type": "string",
+    "mode": "nullable"
+  },
+  { "name": "Originalwaehrung",
+    "type": "string",
+    "mode": "nullable"
+  },
+  { "name": "Kurs",
+    "type": "string",
+    "mode": "nullable"
+  },
+  { "name": "Waehrung",
+    "type": "string",
+    "mode": "nullable"
+  },
+  { "name": "Belastung",
+    "type": "string",
+    "mode": "nullable"
+  },
+  { "name": "Gutschrift",
+    "type": "string",
+    "mode": "nullable"
+  },
+  { "name": "Buchung",
+    "type": "string",
+    "mode": "nullable"
+  }
+]
