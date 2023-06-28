@@ -1,54 +1,58 @@
 [
-  { "name": "Kontonummer",
+  { "name": "type",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
-  { "name": "Kartennummer",
+  { "name": "product",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
-  { "name": "Inhaber",
-    "type": "string",
-    "mode": "nullable"
+  { "name": "started",
+    "type": "datetime",
+    "mode": "nullable",
+    "description": ""
   },
-  { "name": "Einkaufsdatum",
-    "type": "string",
-    "mode": "nullable"
+  { "name": "completed",
+    "type": "datetime",
+    "mode": "nullable",
+    "description": ""
   },
-  { "name": "Buchungstext",
+  { "name": "description",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
-  { "name": "Branche",
-    "type": "string",
-    "mode": "nullable"
+  { "name": "amount",
+    "type": "numeric",
+    "mode": "nullable",
+    "description": "",
+    "precision": 6,
+    "scale": 3
   },
-  { "name": "Betrag",
-    "type": "string",
-    "mode": "nullable"
+  { "name": "fee",
+    "type": "numeric",
+    "mode": "nullable",
+    "description": "",
+    "precision": 6,
+    "scale": 3
   },
-  { "name": "Originalwaehrung",
+  { "name": "currency",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
-  { "name": "Kurs",
+  { "name": "state",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
-  { "name": "Waehrung",
-    "type": "string",
-    "mode": "nullable"
-  },
-  { "name": "Belastung",
-    "type": "string",
-    "mode": "nullable"
-  },
-  { "name": "Gutschrift",
-    "type": "string",
-    "mode": "nullable"
-  },
-  { "name": "Buchung",
-    "type": "string",
-    "mode": "nullable"
+  { "name": "balance",
+    "type": "numeric",
+    "mode": "nullable",
+    "description": "",
+    "precision": 6,
+    "scale": 3
   }
 ]

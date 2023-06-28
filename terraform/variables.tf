@@ -1,5 +1,5 @@
 variable "project_id" {
-    default = ""
+    default = "af-finanzen"
 }
 
 variable "sa_json_google" {
@@ -44,5 +44,22 @@ variable "external_tables" {
         #     dataset_id = "banks"
         #     schema = "bq-schemas/banks.ubs.json"
         # }
+        "revolut" = {
+            description = "Revolut transactions"
+            dataset_id = "banks"
+            external_data_configuration = {
+                autodetect  = false
+                schema      = "bq-schemas/banks.revolut.json"
+                source_uris = "gs://af-finanzen-banks/revolut/"
+
+                csv_options = {
+                    skip_leading_rows = 1
+                }
+                hive_partitioning_options = {
+                    source_uri_prefix = "gs://af-finanzen-banks/revolut/"
+                }
+
+            }
+        }
     }
 }
