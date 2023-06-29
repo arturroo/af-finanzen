@@ -67,16 +67,16 @@ resource "google_bigquery_table" "external_table" {
     deletion_protection  = try(each.value["deletion_protection"], null)
 
     external_data_configuration {
-        autodetect              = try(each.value["autodetect"], true)
-        compression             = try(each.value["compression"], "NONE")
-        ignore_unknown_values   = try(each.value["ignore_unknown_values"], false)
-        max_bad_records         = try(each.value["max_bad_records"], 0)
-        schema                  = try(each.value["schema"], null) != null ? file(each.value["schema"]) : null
-        source_format           = try(each.value["source_format"], "CSV")
-        source_uris             = each.value["source_uris"]
+        autodetect              = try(each.value["external_data_configuration"]["autodetect"], true)
+        compression             = try(each.value["external_data_configuration"]["compression"], "NONE")
+        ignore_unknown_values   = try(each.value["external_data_configuration"]["ignore_unknown_values"], false)
+        max_bad_records         = try(each.value["external_data_configuration"]["max_bad_records"], 0)
+        schema                  = try(each.value["external_data_configuration"]["schema"], null) != null ? file(each.value["external_data_configuration"]["schema"]) : null
+        source_format           = try(each.value["external_data_configuration"]["source_format"], "CSV")
+        source_uris             = each.value["external_data_configuration"]["source_uris"]
 
         dynamic "csv_options" {
-            for_each = try(each.value["csv_options"], null) != null ? [each.value["csv_options"]] : []
+            for_each = try(each.value["external_data_configuration"]["csv_options"], null) != null ? [each.value["external_data_configuration"]["csv_options"]] : []
             content {
                 quote               = try(csv_options.value["quote"], "")
                 allow_jagged_rows   = try(csv_options.value["allow_jagged_rows"], false)
@@ -87,7 +87,7 @@ resource "google_bigquery_table" "external_table" {
         }
 
         dynamic "hive_partitioning_options" {
-            for_each = try(each.value["hive_partitioning_options"], null) != null ? [each.value["hive_partitioning_options"]] : []
+            for_each = try(each.value["external_data_configuration"]["hive_partitioning_options"], null) != null ? [each.value["external_data_configuration"]["hive_partitioning_options"]] : []
             content {
                 mode                        = try(hive_partitioning_options.value["mode"], "AUTO")
                 require_partition_filter    = try(hive_partitioning_options.value["require_partition_filter"], false)

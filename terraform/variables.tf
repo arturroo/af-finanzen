@@ -50,7 +50,9 @@ variable "external_tables" {
             external_data_configuration = {
                 autodetect  = false
                 schema      = "bq-schemas/banks.revolut.json"
-                source_uris = "gs://af-finanzen-banks/revolut/"
+                source_uris = [
+                    "gs://af-finanzen-banks/revolut/m=202303/account-statement_2023-05-01_2023-06-21_en-gb_f79d3c.csv",
+                ]
 
                 csv_options = {
                     skip_leading_rows = 1

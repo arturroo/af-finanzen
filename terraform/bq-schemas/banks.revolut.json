@@ -28,15 +28,15 @@
     "type": "numeric",
     "mode": "nullable",
     "description": "",
-    "precision": 6,
-    "scale": 3
+    "precision": "6",
+    "scale": "3"
   },
   { "name": "fee",
     "type": "numeric",
     "mode": "nullable",
     "description": "",
-    "precision": 6,
-    "scale": 3
+    "precision": "6",
+    "scale": "3"
   },
   { "name": "currency",
     "type": "string",
@@ -52,7 +52,7 @@
     "type": "numeric",
     "mode": "nullable",
     "description": "",
-    "precision": 6,
-    "scale": 3
+    "precision": "6",
+    "scale": "3"
   }
 ]
