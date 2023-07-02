@@ -24,7 +24,6 @@ resource "google_bigquery_table" "internal_table" {
     for_each    = var.internal_tables
     project     = var.project_id
     dataset_id  = try(each.value["dataset_id"], null)
-    # table_id    = try(each.value.name, each.key)
     table_id    = each.key
     description = try(each.value["description"], null)
     clustering  = try(each.value["clustering"], null)

@@ -39,11 +39,6 @@ variable "internal_tables" {
 variable "external_tables" {
     description = "BigQuery external tables"
     default = {
-        # "ubs" = {
-        #     description = "UBS transactions"
-        #     dataset_id = "banks"
-        #     schema = "bq-schemas/banks.ubs.json"
-        # }
         "revolut" = {
             description = "Revolut transactions"
             dataset_id = "banks"
@@ -53,11 +48,18 @@ variable "external_tables" {
                 source_uris = [
                     "gs://af-finanzen-banks/revolut/*",
                 ]
-
                 csv_options = {
                     skip_leading_rows = 1
                 }
                 hive_partitioning_options = {
+                    # 2023-ß7-02
+                    # Error: googleapi: Error 400: Field amount has type parameters, but it is not allowed in external table., invalid
+                    # because this field is financial data: type Numeric (Decimal) with precision and scale
+                    # mode = "CUSTOM"
+                    # source_uri_prefix = "gs://af-finanzen-banks/revolut/{account:String}/{month:String}"
+                    # 2023-07-02
+                    # In this case Schema from JSON file is respected but without parameters.
+                    # So the column amount is Numeric but without scale and precision parameters
                     source_uri_prefix = "gs://af-finanzen-banks/revolut/"
                 }
 
@@ -72,13 +74,14 @@ variable "external_tables" {
                 source_uris = [
                     "gs://af-finanzen-banks/ubs/*",
                 ]
-
                 csv_options = {
-                    encoding = "ISO-8859-1"
-                    skip_leading_rows = 1
+                    encoding            = "ISO-8859-1"
+                    field_delimiter     = ";"
+                    skip_leading_rows   = 1
                 }
                 hive_partitioning_options = {
-                    source_uri_prefix = "gs://af-finanzen-banks/ubs/"
+                    mode = "CUSTOM"
+                    source_uri_prefix = "gs://af-finanzen-banks/ubs/{Monat:String}"
                 }
 
             }

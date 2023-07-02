@@ -1,54 +1,67 @@
 [
   { "name": "Kontonummer",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
   { "name": "Kartennummer",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
   { "name": "Inhaber",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
   { "name": "Einkaufsdatum",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": "This has to be string because the format is d.m.Y"
   },
   { "name": "Buchungstext",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
   { "name": "Branche",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
   { "name": "Betrag",
-    "type": "string",
-    "mode": "nullable"
+    "type": "numeric",
+    "mode": "nullable",
+    "description": ""
   },
   { "name": "Originalwaehrung",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
   { "name": "Kurs",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
   { "name": "Waehrung",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": ""
   },
   { "name": "Belastung",
-    "type": "string",
-    "mode": "nullable"
+    "type": "numeric",
+    "mode": "nullable",
+    "description": ""
   },
   { "name": "Gutschrift",
-    "type": "string",
-    "mode": "nullable"
+    "type": "numeric",
+    "mode": "nullable",
+    "description": ""
   },
   { "name": "Buchung",
     "type": "string",
-    "mode": "nullable"
+    "mode": "nullable",
+    "description": "This has to be string because the format is d.m.Y"
   }
 ]
