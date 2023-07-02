@@ -13,7 +13,7 @@ terraform {
 
 provider "google" {
   credentials = file(var.sa_json_google)
-  project = "af-finanzen"
+  project = var.project_id
   region  = "europe-west6"
   zone    = "europe-west6b"
 }
