@@ -73,7 +73,7 @@ resource "google_bigquery_table" "external_table" {
         max_bad_records         = try(each.value["external_data_configuration"]["max_bad_records"], 0)
         schema                  = try(each.value["external_data_configuration"]["schema"], null) != null ? file(each.value["external_data_configuration"]["schema"]) : null
         source_format           = try(each.value["external_data_configuration"]["source_format"], "CSV")
-        source_uris             = each.value["external_data_configuration"]["source_uris"]
+        source_uris             = try(each.value["external_data_configuration"]["source_uris"], [])
 
         dynamic "csv_options" {
             for_each = try(each.value["external_data_configuration"]["csv_options"], null) != null ? [each.value["external_data_configuration"]["csv_options"]] : []

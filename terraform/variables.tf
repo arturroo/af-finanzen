@@ -1,5 +1,5 @@
 variable "project_id" {
-    default = "af-finanzen"
+    default = ""
 }
 
 variable "sa_json_google" {
@@ -51,7 +51,7 @@ variable "external_tables" {
                 autodetect  = false
                 schema      = "bq-schemas/banks.revolut.json"
                 source_uris = [
-                    "gs://af-finanzen-banks/revolut/m=202303/account-statement_2023-05-01_2023-06-21_en-gb_f79d3c.csv",
+                    "gs://af-finanzen-banks/revolut/*",
                 ]
 
                 csv_options = {
@@ -63,5 +63,26 @@ variable "external_tables" {
 
             }
         }
+        "ubs" = {
+            description = "UBS transactions"
+            dataset_id = "banks"
+            external_data_configuration = {
+                autodetect  = false
+                schema      = "bq-schemas/banks.ubs.json"
+                source_uris = [
+                    "gs://af-finanzen-banks/ubs/*",
+                ]
+
+                csv_options = {
+                    encoding = "ISO-8859-1"
+                    skip_leading_rows = 1
+                }
+                hive_partitioning_options = {
+                    source_uri_prefix = "gs://af-finanzen-banks/ubs/"
+                }
+
+            }
+        }
     }
 }
+
