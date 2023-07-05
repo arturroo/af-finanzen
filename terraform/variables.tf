@@ -86,6 +86,42 @@ variable "external_tables" {
 
             }
         }
+        "revolut_mapping" = {
+            description = "Transaction description to budget account mapping "
+            dataset_id = "banks"
+            external_data_configuration = {
+                autodetect  = true
+                source_format = "GOOGLE_SHEETS"
+                source_uris = [
+                    "https://docs.google.com/spreadsheets/d/id_gsheet",
+                ]
+                google_sheets_options = {
+                    range = "revolut_mapping!G:K"
+                    skip_leading_rows = 1
+                }
+            }
+        }
+        "ubs_mapping" = {
+            description = "Transaction description to budget account mapping "
+            dataset_id = "banks"
+            external_data_configuration = {
+                autodetect  = true
+                source_format = "GOOGLE_SHEETS"
+                source_uris = [
+                    "https://docs.google.com/spreadsheets/d/id_gsheet",
+                ]
+                google_sheets_options = {
+                    range = "ubs_mapping!G:L"
+                    skip_leading_rows = 1
+                }
+            }
+        }
+    }
+}
+
+variable "views" {
+    description = "BigQuery external tables"
+    default = {
     }
 }
 

@@ -93,6 +93,30 @@ resource "google_bigquery_table" "external_table" {
                 source_uri_prefix           = try(hive_partitioning_options.value["source_uri_prefix"], null)
             }
         }
+
+        dynamic "google_sheets_options" {
+            for_each = try(each.value["external_data_configuration"]["google_sheets_options"], null) != null ? [each.value["external_data_configuration"]["google_sheets_options"]] : []
+            content {
+                range = try(google_sheets_options.value["range"], null)
+                skip_leading_rows = try(google_sheets_options.value["skip_leading_rows"], 0)
+            }
+        }
+    }
+    depends_on = [google_bigquery_dataset.dataset]
+}
+
+
+resource "google_bigquery_table" "view" {
+    for_each    = var.views
+    project     = var.project_id
+    dataset_id  = try(each.value["dataset_id"], null)
+    table_id    = each.key
+    description = try(each.value["description"], null)
+    deletion_protection  = try(each.value["deletion_protection"], null)
+
+    view {
+        query = templatefile(each.value["query_file"], {project_id = var.project_id})
+        use_legacy_sql = try(each.value["use_legacy_sql"], false)
     }
     depends_on = [google_bigquery_dataset.dataset]
 }
