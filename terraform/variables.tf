@@ -7,6 +7,11 @@ variable "sa_json_google" {
     sensitive = true
 }
 
+variable "gsheet_id" {
+    type = string
+    sensitive = true
+}
+
 variable "buckets" {
     description = "Google Storage buckets"
     default = {
@@ -14,7 +19,6 @@ variable "buckets" {
         }
     }
 }
-
 
 variable "datasets" {
     description = "BigQuery Datasets"
@@ -49,7 +53,8 @@ variable "external_tables" {
                     "gs://af-finanzen-banks/revolut/*",
                 ]
                 csv_options = {
-                    skip_leading_rows = 1
+                    quote               = "\""
+                    skip_leading_rows   = 1
                 }
                 hive_partitioning_options = {
                     # 2023-ß7-02
@@ -75,6 +80,7 @@ variable "external_tables" {
                     "gs://af-finanzen-banks/ubs/*",
                 ]
                 csv_options = {
+                    quote               = "\""
                     encoding            = "ISO-8859-1"
                     field_delimiter     = ";"
                     skip_leading_rows   = 1
@@ -86,42 +92,53 @@ variable "external_tables" {
 
             }
         }
-        "revolut_mapping" = {
-            description = "Transaction description to budget account mapping "
-            dataset_id = "banks"
-            external_data_configuration = {
-                autodetect  = true
-                source_format = "GOOGLE_SHEETS"
-                source_uris = [
-                    "https://docs.google.com/spreadsheets/d/id_gsheet",
-                ]
-                google_sheets_options = {
-                    range = "revolut_mapping!G:K"
-                    skip_leading_rows = 1
-                }
-            }
-        }
-        "ubs_mapping" = {
-            description = "Transaction description to budget account mapping "
-            dataset_id = "banks"
-            external_data_configuration = {
-                autodetect  = true
-                source_format = "GOOGLE_SHEETS"
-                source_uris = [
-                    "https://docs.google.com/spreadsheets/d/id_gsheet",
-                ]
-                google_sheets_options = {
-                    range = "ubs_mapping!G:L"
-                    skip_leading_rows = 1
-                }
-            }
-        }
+        # TODO Schama, Credentials
+        # "revolut_mapping" = {
+        #     description = "Transaction description to budget account mapping "
+        #     dataset_id = "banks"
+        #     external_data_configuration = {
+        #         autodetect  = true
+        #         source_format = "GOOGLE_SHEETS"
+        #         source_uris = [
+        #             "https://docs.google.com/spreadsheets/d/{gsheet_id}",
+        #         ]
+        #         google_sheets_options = {
+        #             range = "revolut_mapping!G:K"
+        #             skip_leading_rows = 1
+        #         }
+        #     }
+        # }
+        # "ubs_mapping" = {
+        #     description = "Transaction description to budget account mapping"
+        #     dataset_id = "banks"
+        #     external_data_configuration = {
+        #         autodetect  = true
+        #         source_format = "GOOGLE_SHEETS"
+        #         source_uris = [
+        #             "https://docs.google.com/spreadsheets/d/{gsheet_id}",
+        #         ]
+        #         google_sheets_options = {
+        #             range = "ubs_mapping!G:L"
+        #             skip_leading_rows = 1
+        #         }
+        #     }
+        # }
     }
 }
 
 variable "views" {
     description = "BigQuery external tables"
     default = {
+        "ubs_v" = {
+            description = "UBS transactions with datetime transformations"
+            dataset_id = "banks"
+            query_file = "bq-views/banks.ubs_v.sql"
+        }
+        "revolut_v" = {
+            description = "Revolut transactions unique description indicator first_started"
+            dataset_id = "banks"
+            query_file = "bq-views/banks.revolut_v.sql"
+        }
     }
 }
 
