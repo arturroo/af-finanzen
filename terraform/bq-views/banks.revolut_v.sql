@@ -14,4 +14,4 @@ WITH F AS (
 )
 SELECT * EXCEPT(first_description) FROM banks.revolut R
 LEFT JOIN F ON R.description = F.first_description
-ORDER BY started DESC
+ORDER BY started DESC, completed DESC
