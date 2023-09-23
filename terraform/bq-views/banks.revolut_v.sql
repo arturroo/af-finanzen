@@ -1,17 +1,5 @@
-WITH F AS (
-  WITH RN AS(
-    SELECT
-      description
-      , started
-      , row_number() OVER(PARTITION BY description ORDER BY started) rn
-    FROM banks.revolut
-  )
-  SELECT 
-    description first_description
-    , started first_started FROM RN
-  WHERE RN.rn = 1
-  ORDER BY first_started
-)
-SELECT * EXCEPT(first_description) FROM banks.revolut R
-LEFT JOIN F ON R.description = F.first_description
+SELECT
+    *
+  , MIN(started) OVER (PARTITION BY description) first_started
+FROM banks.revolut
 ORDER BY started DESC, completed DESC
