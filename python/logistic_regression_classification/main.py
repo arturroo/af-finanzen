@@ -29,6 +29,7 @@ for col in X.columns:
 # Train model
 model = LogisticRegression()
 #model.fit(X, y)
+
 scores = cross_val_score(model, X, y, cv=10)
 print(scores.mean())
 
