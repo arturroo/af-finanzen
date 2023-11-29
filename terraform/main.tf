@@ -1,14 +1,25 @@
 # Artur Fejklowicz 2024-06-28
-resource "google_storage_bucket" "bucket" {
-    for_each        = var.buckets
-    project         = var.project_id
-    name            = "${var.project_id}-${each.key}"
-    location        = try(each.value["location"], "europe-west6")
-    force_destroy   = try(each.value["force_destroy"], false)
-    storage_class   = try(each.value["storage_class"], "STANDARD")
-    uniform_bucket_level_access = try(each.value["uniform_bucket_level_access"], true)
-    public_access_prevention = "enforced"
+
+module "gstorage" {
+    source = "./modules/gstorage"
+    project_id = var.project_id
+    buckets = var.buckets
+    gs_notifications = var.gs_notifications
 }
+
+module "pubsub" {
+    source = "./modules/pubsub"
+    project_id = var.project_id
+    topics = var.topics
+    subscriptions = var.subscriptions
+}
+
+module "iam" {
+    source = "./modules/iam"
+    project_id = var.project_id
+    bindings = var.bindings
+}
+
 
 resource "google_bigquery_dataset" "dataset" {
     for_each    = var.datasets

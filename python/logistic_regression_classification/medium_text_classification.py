@@ -42,7 +42,7 @@ print('X Test', X_test.shape)
 print('Y Test', y_test.shape)
 
 # Training the classifier
-logreg = LogisticRegression()
+logreg = LogisticRegression(n_jobs=-1)
 logreg.fit(X_train,y_train)
 
 # Testing the classifier

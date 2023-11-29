@@ -20,6 +20,17 @@ variable "buckets" {
     }
 }
 
+variable "gs_notifications" {
+    description = "Google Storage Notifications"
+    default = {
+        "ubs" = {
+            bucket = "banks"
+            object_name_prefix = "ubs/"
+            topic = "ps-transform-csv"
+        }
+    }
+}
+
 variable "datasets" {
     description = "BigQuery Datasets"
     default = {
@@ -142,3 +153,30 @@ variable "views" {
     }
 }
 
+variable "topics" {
+    description = "PubSub Topics"
+    default = {
+        "ps-transform-csv" = {
+            labels = {
+                "publisher" = "gs"
+            }
+        }
+    }
+}
+
+variable "subscriptions" {
+    description = "PubSub Subscriptions"
+    default = {
+        "sb-transform-csv-debug" = {
+            topic = "ps-transform-csv"
+        }
+    }
+}
+
+variable "bindings" {
+  default = {
+      "gs--ps-transform-csv" = {
+          topic = "ps-transform-csv"
+      }
+  }
+}
