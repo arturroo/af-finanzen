@@ -27,7 +27,14 @@ logging.basicConfig(level=logging.INFO)
 
 
 def start(event, context):
-
+    attributes, bucket_id, object_id = {}, None, None
+    try:
+        attributes = event["attributes"]
+        bucket_id = attributes["bucketId"]
+        object_id = attributes["objectId"]
+    except(KeyError):
+        logging.error("start: File details in notification not found")
+        raise Exception(f"start: File in notification not found: {e.}")
 
 def main(event, context):
     """to avoid infinite retry loops, timeout set to 60s
