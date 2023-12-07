@@ -25,6 +25,7 @@ log_client.setup_logging()
 logging.getLogger("backoff").addHandler(logging.StreamHandler())
 logging.basicConfig(level=logging.INFO)
 
+BUCKET_ID = "af-finanzen-banks"
 
 def start(event, context):
     attributes, bucket_id, object_id = {}, None, None
@@ -32,9 +33,32 @@ def start(event, context):
         attributes = event["attributes"]
         bucket_id = attributes["bucketId"]
         object_id = attributes["objectId"]
-    except(KeyError):
-        logging.error("start: File details in notification not found")
-        raise Exception(f"start: File in notification not found: {e.}")
+    except KeyError as e:
+        logging.error("start: File details in notification not found: {e.message}")
+        raise Exception(f"start: File in notification not found: {e.message}")
+
+    logging.info(f"start: File gs://{bucket_id}/{object_id} triggered", extra={"labels": {"dst": "USER"}})
+    file_content = load_blob(object_id)
+
+
+def load_blob(object_id):
+    """
+    Loads the Blob from Google Storage
+    :param bucket_id: ID of the bucket where the data is stored
+    :param object_id: File name
+    :return: File content as string
+    """
+
+    try:
+        bucket = storage.Client().bucket(BUCKET_ID)
+        blob = bucket.blob(object_id)
+        file_content = blob.download_as_text(object_id)
+    except Exception as e:
+        logging.error(f"Could not load the Blob from Google Storage {object_id}: {e}")
+        raise RuntimeError(f"Could not load the Blob from Google Storage {object_id}: {e}")
+
+    return file_content
+
 
 def main(event, context):
     """to avoid infinite retry loops, timeout set to 60s
