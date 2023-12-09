@@ -6,15 +6,13 @@ __version__ = "0.0.1"
 __maintainer__ = "Artur Fejklowicz"
 __status__ = "Production"
 
+import google.cloud.logging
 import logging
 import traceback
 import backoff
-
-import google.cloud.logging
-from google.cloud import storage
-from google.cloud import logging
 from dateutil import parser
 from datetime import datetime, timezone
+from FileContent import FileContent
 
 
 # Cloud logger
@@ -27,37 +25,26 @@ logging.basicConfig(level=logging.INFO)
 
 BUCKET_ID = "af-finanzen-banks"
 
+
 def start(event, context):
-    attributes, bucket_id, object_id = {}, None, None
     try:
         attributes = event["attributes"]
         bucket_id = attributes["bucketId"]
         object_id = attributes["objectId"]
     except KeyError as e:
-        logging.error("start: File details in notification not found: {e.message}")
-        raise Exception(f"start: File in notification not found: {e.message}")
+        logging.error(f"start: File details in notification not found: {e}")
+        raise Exception(f"start: File in notification not found: {e}")
 
     logging.info(f"start: File gs://{bucket_id}/{object_id} triggered", extra={"labels": {"dst": "USER"}})
-    file_content = load_blob(object_id)
+    file_content = FileContent(BUCKET_ID, object_id)
+    file_content \
+        .transform(target="first_line")\
+        .transform(target="end_of_file")\
+        .extract_date()\
+        .save_blob()
 
-
-def load_blob(object_id):
-    """
-    Loads the Blob from Google Storage
-    :param bucket_id: ID of the bucket where the data is stored
-    :param object_id: File name
-    :return: File content as string
-    """
-
-    try:
-        bucket = storage.Client().bucket(BUCKET_ID)
-        blob = bucket.blob(object_id)
-        file_content = blob.download_as_text(object_id)
-    except Exception as e:
-        logging.error(f"Could not load the Blob from Google Storage {object_id}: {e}")
-        raise RuntimeError(f"Could not load the Blob from Google Storage {object_id}: {e}")
-
-    return file_content
+    logging.info(f"start: file {object_id} transformed and saved")
+    print(f"start: file {object_id} transformed and saved")
 
 
 def main(event, context):
@@ -71,8 +58,9 @@ def main(event, context):
     # Ignore events that are too old
     max_age_ms = 60 * 1000
     if event_age_ms > max_age_ms:
-        logging.info(f"Clould not trigger Cloud Function for last 1 minute. Stopping retry. Dropped {context.event_id} "
-                     f"with age {event_age_ms}ms", extra={"labels": {"dst": "USER"}}
+        logging.info(f"Clould not trigger Cloud Function for last 1 minute. Stopping retry. "
+                     f"Dropped {context.event_id} with age {event_age_ms}ms",
+                     extra={"labels": {"dst": "USER"}}
                      )
         return "Trigger timeout"
 
