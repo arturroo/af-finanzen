@@ -1,4 +1,11 @@
 # Artur Fejklowicz 2024-06-28
+# __author__ = "Artur Fejklowicz"
+# __copyright__ = "Copyright 2023, The AF Finanzen Project"
+# __credits__ = ["Artur Fejklowicz"]
+# __license__ = "GPLv3"
+# __version__ = "1.0.0"
+# __maintainer__ = "Artur Fejklowicz"
+# __status__ = "Production"
 
 module "gstorage" {
     source = "./modules/gstorage"
@@ -18,6 +25,18 @@ module "iam" {
     source = "./modules/iam"
     project_id = var.project_id
     bindings = var.bindings
+}
+
+module "gcf" {
+    source = "./modules/gcf"
+    project_id = var.project_id
+    cf_names = var.cf_names
+    gcf_bucket = module.gstorage.gcf_bucket
+
+    depends_on = [
+        module.gstorage,
+        module.pubsub
+    ]
 }
 
 

@@ -17,6 +17,9 @@ variable "buckets" {
     default = {
         "banks" = {
         }
+        "gcf" = {
+        }
+
     }
 }
 
@@ -25,7 +28,7 @@ variable "gs_notifications" {
     default = {
         "ubs" = {
             bucket = "banks"
-            object_name_prefix = "ubs/"
+            object_name_prefix = "ubs/raw"
             topic = "ps-transform-csv"
         }
     }
@@ -167,7 +170,10 @@ variable "topics" {
 variable "subscriptions" {
     description = "PubSub Subscriptions"
     default = {
-        "sb-transform-csv-debug" = {
+        "ps-transform-csv-sub-gcf" = {
+            topic = "ps-transform-csv"
+        }
+        "ps-transform-csv-sub-debug" = {
             topic = "ps-transform-csv"
         }
     }
@@ -180,3 +186,15 @@ variable "bindings" {
       }
   }
 }
+
+variable "cf_names" {
+    description = "Google Cloud Functions"
+    default = {
+        "cf-transform-csv" = {
+            labels = {
+                "publisher" = "gs"
+            }
+        }
+    }
+}
+

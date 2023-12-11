@@ -1,4 +1,11 @@
 # AF20231125
+# __author__ = "Artur Fejklowicz"
+# __copyright__ = "Copyright 2023, The AF Finanzen Project"
+# __credits__ = ["Artur Fejklowicz"]
+# __license__ = "GPLv3"
+# __version__ = "1.0.0"
+# __maintainer__ = "Artur Fejklowicz"
+# __status__ = "Production"
 
 resource "google_storage_bucket" "bucket" {
     for_each        = var.buckets
@@ -31,13 +38,3 @@ resource "google_storage_notification" "notification" {
   # }
   # depends_on = [google_pubsub_topic_iam_binding.binding]
 }
-
-// Enable notifications by giving the correct IAM permission to the unique service account.
-
-
-#
-# // End enabling notifications
-#
-# resource "google_pubsub_topic" "topic" {
-#   name = "default_topic"
-# }

@@ -1,4 +1,12 @@
 # AF20231129
+# __author__ = "Artur Fejklowicz"
+# __copyright__ = "Copyright 2023, The AF Finanzen Project"
+# __credits__ = ["Artur Fejklowicz"]
+# __license__ = "GPLv3"
+# __version__ = "1.0.0"
+# __maintainer__ = "Artur Fejklowicz"
+# __status__ = "Production"
+
 
 resource "google_pubsub_topic" "topic" {
   for_each        = var.topics

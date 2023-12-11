@@ -2,7 +2,7 @@ __author__ = "Artur Fejklowicz"
 __copyright__ = "Copyright 2023, The AF Finanzen Project"
 __credits__ = ["Artur Fejklowicz"]
 __license__ = "GPLv3"
-__version__ = "0.0.1"
+__version__ = "1.0.0"
 __maintainer__ = "Artur Fejklowicz"
 __status__ = "Production"
 
