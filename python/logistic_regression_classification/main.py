@@ -9,13 +9,19 @@ import numpy as np
 # - https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html
 
 import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_selection import SelectKBest, chi2
+from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import cross_val_score, cross_validate
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
 from google.cloud import bigquery
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import nltk.stem.snowball
+
 
 client = bigquery.Client(project="af-finanzen")
 query = ("""SELECT
@@ -28,7 +34,45 @@ query = ("""SELECT
 FROM banks.revolut_mapping_internal
 """)
 df = client.query(query).to_dataframe()  # API request
-# print(f"df: {df}")
+print(f"df.head()\n {df.head(25)}")
+print(df.groupby("Konto").Konto.count())
+df.groupby("Konto").Konto.count().plot.bar(ylim=0)
+#plt.show()
+
+# stemmer_pl = nltk.stem.snowball.SnowballStemmer("polish")
+#vectorizer = TfidfVectorizer(min_df=1, stop_words="english", sublinear_tf=True, norm='l2', ngram_range=(1, 5))
+vectorizer = TfidfVectorizer(
+    min_df=1,
+    stop_words=["i", "o", "a", "z", "-", "na", "at", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "w"],
+    sublinear_tf=True, norm='l2', ngram_range=(1, 4))
+final_features = vectorizer.fit_transform(df['description']).toarray()
+print(f"final_features.shape: {final_features.shape}")
+
+X = df['description']
+Y = df['Konto']
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.25)
+
+pipeline = Pipeline([('vect', vectorizer),
+                     ('chi',  SelectKBest(chi2, k="all")),
+                     ('clf', LogisticRegression(random_state=0))])
+
+model = pipeline.fit(X_train, y_train)
+
+ytest = np.array(y_test)
+
+# confusion matrix and classification report(precision, recall, F1-score)
+print(classification_report(ytest, model.predict(X_test)))
+print(confusion_matrix(ytest, model.predict(X_test)))
+
+print(f"shape y_test {y_test.shape} X_test {X_test.shape}")
+#for idx, y in y_test.items():
+##    #print(f"model.predict(X_test)\n{model.predict(X_test)}")
+#    pred = model.predict([X_test[idx]])
+#    print(f"{1 if y == pred else 0} y {y}    pred: {pred}    x {X_test[idx]} ")
+#    #print(f"idx {idx} y {y}")
+
+exit()
+
 
 # Change text to numbers
 le = LabelEncoder()
@@ -37,7 +81,8 @@ for col in df.columns:
     #print('Features', f"le_{col}", df[f"le_{col}"].to_numpy().shape)
     #print('Features', f"le_{col}", df[f"le_{col}"].to_numpy())
 
-print(df.sort_values("le_description").to_string())
+#print(df.sort_values("le_description").to_string())
+print(df.sort_values("le_description"))
 # (df.groupby('Konto').text.count().plot.bar(ylim=0))
 # plt.show()
 
