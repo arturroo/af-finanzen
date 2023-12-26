@@ -54,7 +54,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.25)
 
 pipeline = Pipeline([('vect', vectorizer),
                      ('chi',  SelectKBest(chi2, k="all")),
-                     ('clf', LogisticRegression(random_state=0))])
+                     ('clf', LogisticRegression(multi_class='ovr', solver='liblinear', random_state=0))])
 
 model = pipeline.fit(X_train, y_train)
 
