@@ -21,6 +21,7 @@ from sklearn import metrics
 from google.cloud import bigquery
 import matplotlib.pyplot as plt
 import nltk.stem.snowball
+from sklearn.metrics import ConfusionMatrixDisplay
 
 
 client = bigquery.Client(project="af-finanzen")
@@ -32,21 +33,39 @@ query = ("""SELECT
   --    ELSE "Andere"
   --  END AS Konto
 FROM banks.revolut_mapping_internal
+-- WHERE
+--     Konto not in ("PK Auto", "SK Haushalt", "Top-Up", "PK Maja", "PK Rest")
 """)
 df = client.query(query).to_dataframe()  # API request
 print(f"df.head()\n {df.head(25)}")
 print(df.groupby("Konto").Konto.count())
 df.groupby("Konto").Konto.count().plot.bar(ylim=0)
-#plt.show()
+plt.show()
 
 # stemmer_pl = nltk.stem.snowball.SnowballStemmer("polish")
+
+# Bag of Words vectorization method that takes under consideration ratio of word frequency in single element to whole document
+
+# ngram_range from bard.google.com
+# The `ngram_range` parameter in `TfidfVectorizer` in scikit-learn determines the range of n-grams to be extracted from the text documents. An n-gram is a sequence of n consecutive words in a text document. For example, a unigram is a single word, a bigram is a sequence of two words, and a trigram is a sequence of three words.
+# By specifying an `ngram_range`, you can control which n-grams are included in the feature set. For instance, an `ngram_range` of (1, 1) indicates that only unigrams will be extracted, while an `ngram_range` of (1, 2) allows unigrams and bigrams. The choice of `ngram_range` depends on the specific task at hand.
+# Here's a breakdown of how the `ngram_range` parameter affects text representation:
+# * **Unigrams:** Unigrams represent individual words and capture the frequency of each word in the text. They are useful for tasks like document classification, where the overall topic or sentiment of the document is important.
+# * **Bigrams:** Bigrams capture the relationships between pairs of words and can be more indicative of the meaning or context of a phrase. This can be helpful for tasks like sentiment analysis, where the combination of words can convey a stronger emotional tone than individual words alone.
+# * **Trigrams:** Trigrams analyze the context of triplets of words, providing even more granularity in capturing the meaning and nuances of language. This can be useful for tasks that require a deeper understanding of the linguistic structure of a text, such as machine translation or information extraction.
+# In summary, the `ngram_range` parameter in `TfidfVectorizer` allows you to tailor the text representation to the specific task at hand. By choosing the appropriate range of n-grams, you can capture the relevant information from the text while reducing dimensionality and improving the performance of downstream learning tasks.
+
 #vectorizer = TfidfVectorizer(min_df=1, stop_words="english", sublinear_tf=True, norm='l2', ngram_range=(1, 5))
+
 vectorizer = TfidfVectorizer(
-    min_df=1,
-    stop_words=["i", "o", "a", "z", "-", "na", "at", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "w"],
-    sublinear_tf=True, norm='l2', ngram_range=(1, 4))
+    min_df=0.0001,
+    stop_words=["i", "o", "a", "z", "-", "w", "na", "at", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
+                "(2", "(2)", "(3", "(3)", "(4", "(4)", "(5", "(5)", "(6", "(6)", "(7", "(7)", "(8", "(8)", "(9", "(9)", "(0"],
+    sublinear_tf=True, norm='l2', ngram_range=(1, 1))
 final_features = vectorizer.fit_transform(df['description']).toarray()
-print(f"final_features.shape: {final_features.shape}")
+print(f"final_features.shape:\n{final_features.shape}")
+#np.set_printoptions(threshold=np.inf)
+#print(f"final_featurese:\n{final_features}")
 
 X = df['description']
 Y = df['Konto']
@@ -54,113 +73,24 @@ X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.25)
 
 pipeline = Pipeline([('vect', vectorizer),
                      ('chi',  SelectKBest(chi2, k="all")),
-                     ('clf', LogisticRegression(multi_class='ovr', solver='liblinear', random_state=0))])
+                     ('clf',  LogisticRegression(multi_class='ovr', solver='liblinear', random_state=0))])
 
 model = pipeline.fit(X_train, y_train)
 
 ytest = np.array(y_test)
 
 # confusion matrix and classification report(precision, recall, F1-score)
-print(classification_report(ytest, model.predict(X_test)))
-print(confusion_matrix(ytest, model.predict(X_test)))
+classification_report = classification_report(ytest, model.predict(X_test))
+confusion_matrix = confusion_matrix(ytest, model.predict(X_test))
 
+print(classification_report)
+print(confusion_matrix)
+disp = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix)
+disp.plot()
+plt.show()
 print(f"shape y_test {y_test.shape} X_test {X_test.shape}")
 #for idx, y in y_test.items():
 ##    #print(f"model.predict(X_test)\n{model.predict(X_test)}")
 #    pred = model.predict([X_test[idx]])
 #    print(f"{1 if y == pred else 0} y {y}    pred: {pred}    x {X_test[idx]} ")
 #    #print(f"idx {idx} y {y}")
-
-exit()
-
-
-# Change text to numbers
-le = LabelEncoder()
-for col in df.columns:
-    df[f"le_{col}"] = le.fit_transform(df[col])
-    #print('Features', f"le_{col}", df[f"le_{col}"].to_numpy().shape)
-    #print('Features', f"le_{col}", df[f"le_{col}"].to_numpy())
-
-#print(df.sort_values("le_description").to_string())
-print(df.sort_values("le_description"))
-# (df.groupby('Konto').text.count().plot.bar(ylim=0))
-# plt.show()
-
-# Labels
-y = df["le_Konto"]
-# Data
-# X = df.drop("Konto", axis=1)
-X = df["le_description"]
-
-# print(f"X: {X.to_string()}")
-# print(f"y: {y.to_string()}")
-# print(df.iloc[357])
-#
-#
-# Split the data for train and test
-# Splitting train : test to 80 : 20 ratio
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-X_train = X_train.to_numpy().reshape(-1, 1)
-X_test = X_test.to_numpy().reshape(-1, 1)
-#y_train = y_train.to_numpy().reshape(-1, 1)
-#y_test = y_test.to_numpy().reshape(-1, 1)
-y_train = y_train.to_numpy()
-y_test = y_test.to_numpy()
-print('X Train', X_train.shape)
-print('X Train', X_train)
-print('Y Train', y_train.shape)
-print('Y Train', y_train)
-print('X Test', X_test.shape)
-print('Y Test', y_test.shape)
-#
-# print(f"X_test: {X_test.to_string()}")
-# print(f"y_test: {y_test.to_string()}")
-#
-# Train model
-model = LogisticRegression(multi_class='ovr', solver='liblinear')
-model.fit(X_train, y_train)
-#
-# Testing the classifier
-y_pred = model.predict(X_test)
-#print('Predicted',y_pred)
-#print('Actual data',y_test)
-# y_predicted_probability = model.predict_proba(X_test)
-# print('Predicted probability',y_predicted_probability)
-#
-# # A confusion matrix is a table that is used to evaluate the performance of a classification model. Diagonal values represent accurate predictions, while non-diagonal elements are inaccurate predictions.
-cnf_matrix = metrics.confusion_matrix(y_test, y_pred)
-print(f"Confusion matrix\n",cnf_matrix)
-#
-print("Accuracy:",metrics.accuracy_score(y_test, y_pred))
-#print("Precision:",metrics.precision_score(y_test, y_pred, average="micro"))
-#print("Recall:",metrics.recall_score(y_test, y_pred, average="micro"))
-
-#print("Precision:",metrics.precision_score(y_test, y_pred))
-#print("Recall:",metrics.recall_score(y_test, y_pred))
-
-#y_pred = model.predict(np.array(["Fajna restauracja", "Arbon Tankstelle"]).reshape(-1, 1))
-y_pred = model.predict(np.array([400, 500]).reshape(-1, 1))
-print('Predicted',y_pred)
-
-print(metrics.classification_report(y_test, model.predict(X_test)))
-
-
-
-
-
-
-
-
-#
-# scores = cross_val_score(model, X, y, cv=10)
-# print(scores.mean())
-#
-# results = cross_validate(model, X, y, scoring="accuracy", cv=10)
-# print(results["test_score"].mean())
-# model = results["best_estimator_"]
-# print(results["best_estimator_"])
-#
-# # Test model
-# X_test = pd.DataFrame({"tekst": ["GoodLood", "Restauracja Pajda", "AAABBB"]})
-# y_pred = model.predict(X_test)
-# print(y_pred)
