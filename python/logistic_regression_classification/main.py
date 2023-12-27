@@ -28,13 +28,7 @@ client = bigquery.Client(project="af-finanzen")
 query = ("""SELECT
   description
   , Konto
-  --, CASE Konto
-  --    WHEN "PK Leben" THEN Konto
-  --    ELSE "Andere"
-  --  END AS Konto
 FROM banks.revolut_mapping_internal
--- WHERE
---     Konto not in ("PK Auto", "SK Haushalt", "Top-Up", "PK Maja", "PK Rest")
 """)
 df = client.query(query).to_dataframe()  # API request
 print(f"df.head()\n {df.head(25)}")
