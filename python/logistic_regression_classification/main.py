@@ -22,6 +22,20 @@ from google.cloud import bigquery
 import matplotlib.pyplot as plt
 import nltk.stem.snowball
 from sklearn.metrics import ConfusionMatrixDisplay
+import nltk
+from nltk.corpus import stopwords
+#nltk.download('stopwords')
+
+def load_lines_from_file(filename):
+    """Loads newline-delimited strings from a file into a list."""
+    try:
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+            lines = [line.strip() for line in lines]  # Remove trailing newlines
+            return lines
+    except FileNotFoundError:
+        print(f"Error: File '{filename}' not found.")
+        return None
 
 
 client = bigquery.Client(project="af-finanzen")
@@ -51,10 +65,25 @@ plt.show()
 
 #vectorizer = TfidfVectorizer(min_df=1, stop_words="english", sublinear_tf=True, norm='l2', ngram_range=(1, 5))
 
+stops_eng = set(stopwords.words('english'))
+stops_ger = set(stopwords.words('german'))
+stops_ita = set(stopwords.words('italian'))
+stops_spa = set(stopwords.words('spanish'))
+stops_fra = set(stopwords.words('french'))
+stops_pol = set(load_lines_from_file("polish.txt"))
+stops = stops_eng.union(stops_ger).union(stops_ita).union(stops_spa).union(stops_fra)
+if stops_pol:
+    stops = stops.union(stops_pol)
+stops = list(stops)
+print(f"stops:\n{stops}")
+print(f"stops type:\n{type(stops)}")
+
 vectorizer = TfidfVectorizer(
     min_df=0.0001,
-    stop_words=["i", "o", "a", "z", "-", "w", "na", "at", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
-                "(2", "(2)", "(3", "(3)", "(4", "(4)", "(5", "(5)", "(6", "(6)", "(7", "(7)", "(8", "(8)", "(9", "(9)", "(0"],
+    # stop_words=["i", "o", "a", "z", "-", "w", "na", "at", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
+    #             "(2", "(2)", "(3", "(3)", "(4", "(4)", "(5", "(5)", "(6", "(6)", "(7", "(7)", "(8", "(8)", "(9", "(9)", "(0"],
+    stop_words=stops,
+    max_features=5000,
     sublinear_tf=True, norm='l2', ngram_range=(1, 1))
 final_features = vectorizer.fit_transform(df['description']).toarray()
 print(f"final_features.shape:\n{final_features.shape}")
@@ -75,13 +104,25 @@ ytest = np.array(y_test)
 
 # confusion matrix and classification report(precision, recall, F1-score)
 classification_report = classification_report(ytest, model.predict(X_test))
-confusion_matrix = confusion_matrix(ytest, model.predict(X_test))
+confusion_matrix_training = confusion_matrix(np.array(y_train), model.predict(X_train))
+confusion_matrix_testing = confusion_matrix(ytest, model.predict(X_test))
 
 print(classification_report)
-print(confusion_matrix)
-disp = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix)
+
+print("Confusion Matrix: on training data")
+print(confusion_matrix_training)
+disp = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix_training)
 disp.plot()
 plt.show()
+
+print("Confusion Matrix: on testing data")
+print(confusion_matrix_testing)
+disp = ConfusionMatrixDisplay(confusion_matrix=confusion_matrix_testing)
+disp.plot()
+plt.show()
+
+
+
 print(f"shape y_test {y_test.shape} X_test {X_test.shape}")
 #for idx, y in y_test.items():
 ##    #print(f"model.predict(X_test)\n{model.predict(X_test)}")
