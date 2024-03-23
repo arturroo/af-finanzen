@@ -1,6 +1,6 @@
 variable "project_id" {
     default = ""
-}
+}   
 
 variable "sa_json_google" {
     type = string
