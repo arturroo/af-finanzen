@@ -50,6 +50,29 @@ print(df.groupby("Konto").Konto.count())
 df.groupby("Konto").Konto.count().plot.bar(ylim=0)
 plt.show()
 
+# write a cunftion to change list into pandas series
+def change_list_into_pandas_series(list_to_change):
+    """
+    This function takes a list and returns a pandas series.
+
+    Args:
+        list_to_change: A list to be converted into a pandas series.
+
+    Returns:
+        A pandas series.
+    """
+    return pd.Series(list_to_change)
+
+# Create a list of strings
+list_of_strings = ["apple", "banana", "cherry", "durian"]
+
+# Convert the list into a pandas series
+series_of_strings = change_list_into_pandas_series(list_of_strings)
+
+# Print the pandas series
+print(series_of_strings)
+
+
 # stemmer_pl = nltk.stem.snowball.SnowballStemmer("polish")
 
 # Bag of Words vectorization method that takes under consideration ratio of word frequency in single element to whole document
