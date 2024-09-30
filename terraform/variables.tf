@@ -195,6 +195,11 @@ variable "cf_names" {
                 "publisher" = "gs"
             }
         }
+        # "cf-model-lr" = {
+        #     labels = {
+        #         # "publisher" = "gs"
+        #     }
+        # }
     }
 }
 
