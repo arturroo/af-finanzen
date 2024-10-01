@@ -1,51 +1,56 @@
+__author__ = "artur.fejklowicz@gmail.com"
 __version__ = '0.1.0'
-
+__doc__ = """
+Loads sklearn logistic regression model from file that is in Google cloud storage.
+Loads test text from request or from BigQuery
+Vectorizes the raw data and performs prediction.
+"""
 import logging
 import traceback
 import backoff
 import google.cloud.logging
 from google.cloud import storage
+from google.cloud import bigquery
 # from flask import jsonify, request
 import pickle
 import os
+from datetime import datetime
+from FeatureEngineering import FeatureEngineering
+import pandas as pd
 
+# setup logging
 log_client = google.cloud.logging.Client()
 log_client.setup_logging()
 logging.basicConfig(level=logging.INFO)
 logging.getLogger('backoff').addHandler(logging.StreamHandler())
 
 # load sklearn logistic regression from file that is in google cloud storage
-
+BUCKET_NAME = os.environ.get('BUCKET_NAME', 'af-finanzen-banks')
 
 def parse_request(request):
+    logging.info(f"parse_request: start")
     try:
         request_json = request.get_json()
-
-        # Check if request_json is valid before accessing keys
-        if request_json:
-            fe_type = request_json.get('fe_type')
-            model_path = request_json.get('model_path')
-        else:
-            # Handle the case where the request doesn't have valid JSON
-            fe_type = None
-            model_path = None
-            # ... (You might want to return an error response here)
-
+        vectorizer = request_json['vectorizer']
+        model_path = request_json['model_path']
     except Exception as e:
-        # Handle any other exceptions during JSON parsing
-        # ... (Log the error, return an error response, etc.)
+        logging.error(f"Error parsing request: {str(e)}")
+        raise ValueError(f"Error parsing request: {str(e)}")
 
-    text = request_json.get('text')
+    test_text = None
+    if request_json['test_text']:
+        test_text = pd.DataFrame({'description': [request_json['test_text']]})
 
+    month = request_json['month'] if 'month' in request_json else None
+
+    return vectorizer, model_path, test_text, month
 
 @backoff.on_exception(backoff.expo, Exception, max_tries=5)
-def get_gs_client():
-    return storage.Client()
-
-def load_model(model_path):
+def load_model(model_path: str = None):
     """Loads the model from Google Cloud Storage."""
+    logging.info(f"load_model: Loading model from {model_path}")
     try:
-        gs = get_gs_client()
+        gs = storage.Client()
         bucket = gs.bucket(BUCKET_NAME)
         blob = bucket.blob(model_path)
         blob.download_to_filename('/tmp/model.pkl')
@@ -55,41 +60,50 @@ def load_model(model_path):
     except Exception as e:
         raise Exception(f"Error loading model: {str(e)}")
 
-def perform_feature_engineering(text, fe_type):
-    """Performs feature engineering based on the selected method."""
-    if fe_type == 'bow':
-        return bow_vectorizer.transform([text])
-    elif fe_type == 'tfidf':
-        return tfidf_vectorizer.transform([text])
-    elif fe_type == 'embeddings':
-        # ... your embedding logic
-    else:
-        raise ValueError("Invalid fe_type") 
-
-def predict(X_test) -> str:
-    """Handles prediction requests."""
+@backoff.on_exception(backoff.expo, Exception, max_tries=5)
+def load_test_data(month: str = None):
+    """Loads test data from Google BigQuery."""
+    if not month:
+        month = datetime.now().strftime('%Y-%m')
+    logging.info(f"load_test_data: Loading test data for month {month}")
     try:
-        request_data = request.get_json() if request.method == 'POST' else request.args
-        text = request_data.get('text')
-        model_path = request_data.get('model_path')
-        fe_type = request_data.get('fe_type')
-
-        if not all([text, model_path, fe_type]):
-            return jsonify({'error': 'Missing required parameters.'}), 400
-
-        model = load_model(model_path)
-        features = perform_feature_engineering(text, fe_type)
-        predictions = model.predict(features)
-
-        return jsonify({'predictions': predictions.tolist()})
-
+        bq = bigquery.Client()
+        query = f"""
+            SELECT DISTINCT description
+            FROM banks.revolut_v
+            WHERE month = "{month}"
+        """
+        return bq.query(query).to_dataframe()
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        raise Exception(f"Error loading test data: {str(e)}")
 
+def feature_engineering(vectorizer, raw_data: pd.DataFrame = None):
+    """Performs feature engineering based on the selected method."""
+    fe = FeatureEngineering(vectorizer, raw_data)
+
+    # if fe_type == 'bow':
+    #     return bow_vectorizer.transform([text])
+    # elif fe_type == 'tfidf':
+    #     return tfidf_vectorizer.transform([text])
+    # elif fe_type == 'embeddings':
+    #     # ... your embedding logic
+    # else:
+    #     raise ValueError("Invalid fe_type") 
+
+def predict(X_pred):
+    """Handles prediction requests."""
+    pass
 
 def start(request):
     """Starts loading of model, processing of features and prediction."""
-    return predict(request)
+    logging.info(f"start: start")
+    vectorizer, model_path, test_text, month = parse_request(request)
+    raw_data = load_test_data(month) if not test_text else test_text
+    X_pred = feature_engineering(raw_data, vectorizer)
+    model = load_model(model_path)
+    y_pred = predict(X_pred, model)
+    logging.info(f"start: preds: {y_pred}")
+    return y_pred, 200
 
 def main(request):
     try:
@@ -97,19 +111,3 @@ def main(request):
     except Exception:
         logging.error(traceback.format_exec(), extra={"labels": {"version": __version__ }})
         raise RuntimeError
-
-
-# model_path = os.path.join(os.path.dirname(file), 'model.pkl')
-# with open(model_path, 'rb') as f:
-# model = pickle.load(f)
-# 
-# def predict(request):
-#     predictions = model.predict(features)
-# 
-# return jsonify({'predictions': predictions.tolist()})
-# else:
-# return jsonify({'error': 'Missing "features" key in request body'}), 400
-# except Exception as e:
-# return jsonify({'error': str(e)}), 500
-# else:
-# return jsonify({'error': 'Invalid request method'}), 405
