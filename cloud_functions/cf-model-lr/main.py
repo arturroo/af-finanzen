@@ -96,9 +96,15 @@ def load_test_data(month: str = None):
     except Exception as e:
         raise Exception(f"Error loading test data: {str(e)}")
 
-def predict(X_pred):
+def predict(X_pred, model):
     """Handles prediction requests."""
-    pass
+    logging.info(f"predict: starting prediction for {X_pred}")
+    y_pred = model.predict(X_pred)
+    y_pred_proba = model.predict_proba(X_pred)
+    logging.info(f"predict: y_pred {y_pred}")
+    logging.info(f"predict: y_pred_proba {y_pred_proba}")
+    return y_pred
+
 
 def start(request):
     """Starts loading of model, processing of features and prediction."""
