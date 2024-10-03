@@ -105,7 +105,6 @@ def predict(X_pred, model):
     logging.info(f"predict: y_pred_proba {y_pred_proba}")
     return y_pred
 
-
 def start(request):
     """Starts loading of model, processing of features and prediction."""
     logging.info(f"start: start")
