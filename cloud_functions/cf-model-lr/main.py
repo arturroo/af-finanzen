@@ -12,11 +12,17 @@ import google.cloud.logging
 from google.cloud import storage
 from google.cloud import bigquery
 # from flask import jsonify, request
-import pickle
 import os
 from datetime import datetime
 from FeatureEngineering import FeatureEngineering
 import pandas as pd
+from pathlib import Path
+import pickle
+import joblib
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+
 
 # setup logging
 log_client = google.cloud.logging.Client()
@@ -27,12 +33,14 @@ logging.getLogger('backoff').addHandler(logging.StreamHandler())
 # load sklearn logistic regression from file that is in google cloud storage
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'af-finanzen-banks')
 
+
 def parse_request(request):
     logging.info(f"parse_request: start")
     try:
         request_json = request.get_json()
-        vectorizer = request_json['vectorizer']
-        model_path = request_json['model_path']
+        timestamp = request_json['timestamp']
+        vectorizer_fn = request_json['vectorizer_fn']
+        model_fn = request_json['model_fn']
     except Exception as e:
         logging.error(f"Error parsing request: {str(e)}")
         raise ValueError(f"Error parsing request: {str(e)}")
@@ -43,22 +51,33 @@ def parse_request(request):
 
     month = request_json['month'] if 'month' in request_json else None
 
-    return vectorizer, model_path, test_text, month
+    return timestamp, vectorizer_fn, model_fn, test_text, month
 
 @backoff.on_exception(backoff.expo, Exception, max_tries=5)
-def load_model(model_path: str = None):
-    """Loads the model from Google Cloud Storage."""
-    logging.info(f"load_model: Loading model from {model_path}")
+def load_from_gcs(timestamp: str = None, object_fn:str = None):
+    """Loads the model or vectorizer from Google Cloud Storage."""
+    bucket_name = "af-finanzen-banks"
+    method = object_fn.split(".")[-1]
+    blob_name = f"models/lr/{timestamp}/{object_fn}"
+
     try:
         gs = storage.Client()
-        bucket = gs.bucket(BUCKET_NAME)
-        blob = bucket.blob(model_path)
-        blob.download_to_filename('/tmp/model.pkl')
-        with open('/tmp/model.pkl', 'rb') as f:
-            model = pickle.load(f)
-        return model
+        bucket = gs.bucket(bucket_name)
+        blob = bucket.blob(blob_name)
+        file_path = Path("/tmp") / timestamp / object_fn
+        blob.download_to_filename(file_path)
+        with open(file_path, 'rb') as f:
+            if method == "pkl":
+                python_object = pickle.load(f)
+            elif method == "joblib":
+                python_object = joblib.load(f)
+            else:
+                raise Exception(f"No such save method: {method}")
+        print(f"Loaded object from gs://{bucket_name}/{blob_name}")
+        return python_object
     except Exception as e:
-        raise Exception(f"Error loading model: {str(e)}")
+        raise Exception(f"Error loading object from gs://{bucket_name}/{blob_name}: {str(e)}")
+
 
 @backoff.on_exception(backoff.expo, Exception, max_tries=5)
 def load_test_data(month: str = None):
@@ -77,19 +96,6 @@ def load_test_data(month: str = None):
     except Exception as e:
         raise Exception(f"Error loading test data: {str(e)}")
 
-def feature_engineering(vectorizer, raw_data: pd.DataFrame = None):
-    """Performs feature engineering based on the selected method."""
-    fe = FeatureEngineering(vectorizer, raw_data)
-
-    # if fe_type == 'bow':
-    #     return bow_vectorizer.transform([text])
-    # elif fe_type == 'tfidf':
-    #     return tfidf_vectorizer.transform([text])
-    # elif fe_type == 'embeddings':
-    #     # ... your embedding logic
-    # else:
-    #     raise ValueError("Invalid fe_type") 
-
 def predict(X_pred):
     """Handles prediction requests."""
     pass
@@ -97,10 +103,13 @@ def predict(X_pred):
 def start(request):
     """Starts loading of model, processing of features and prediction."""
     logging.info(f"start: start")
-    vectorizer, model_path, test_text, month = parse_request(request)
+    
+    timestamp, vectorizer_fn, model_fn, test_text, month = parse_request(request)
     raw_data = load_test_data(month) if not test_text else test_text
-    X_pred = feature_engineering(raw_data, vectorizer)
-    model = load_model(model_path)
+    fe = FeatureEngineering(raw_data, load_from_gcs(timestamp, vectorizer_fn))
+    X_pred = fe.get_features()
+    model = load_from_gcs(timestamp, model_fn)
+    
     y_pred = predict(X_pred, model)
     logging.info(f"start: preds: {y_pred}")
     return y_pred, 200

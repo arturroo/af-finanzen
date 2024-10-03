@@ -1,29 +1,23 @@
 import pandas as pd
-import nltk
 from nltk.corpus import stopwords
-import urllib.request
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from typing import Union
 
 
 class FeatureEngineering:
-    def __init__(self, vectorizer: str = "TFiDF", raw_data: pd.DataFrame = None):
-        self.vectorizer = vectorizer
+    def __init__(self, raw_data: pd.DataFrame = None, vectorizer: Union[TfidfVectorizer, CountVectorizer] = None, ):
         self.raw_data = raw_data
+        self.vectorizer = vectorizer
+        if isinstance(self.vectorizer, TfidfVectorizer):
+            self.vectorizer_type = 'tfidf'
+        elif isinstance(self.vectorizer, CountVectorizer):
+            self.vectorizer_type = 'bow'
+        else:
+            self.vectorizer_type = 'unknown'
+
         self.label_encoder = {'Others':0, 'PK Artur': 1, 'PK Leben': 2, 'PK Reisen': 3, 'SK Ferien': 4}
     
-    @staticmethod
-    def get_stop_words():
-        stops_eng = set(stopwords.words('english'))
-        stops_ger = set(stopwords.words('german'))
-        stops_ita = set(stopwords.words('italian'))
-        stops_spa = set(stopwords.words('spanish'))
-        stops_fra = set(stopwords.words('french'))
-        link = "https://raw.githubusercontent.com/bieli/stopwords/master/polish.stopwords.txt"
-        lines=[]
-        responce = urllib.request.urlopen(link)
-        stops_pol = responce.read().decode().split(f"\n")
 
-        return list(stops_eng.union(stops_ger).union(stops_ita).union(stops_spa).union(stops_fra).union(stops_pol))
-
-    def bow_vectorizer(self):
-        count_vect = CountVectorizer()
+    def get_features(self) -> pd.Series:
+        self.X_pred = self.vectorizer.transform(self.raw_data['description'])
+        return self.X_pred
