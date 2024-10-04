@@ -46,7 +46,7 @@ def parse_request(request):
         raise ValueError(f"Error parsing request: {str(e)}")
 
     test_text = None
-    if request_json['test_text']:
+    if test_text in request_json:
         test_text = pd.DataFrame({'description': [request_json['test_text']]})
 
     month = request_json['month'] if 'month' in request_json else None
@@ -64,7 +64,7 @@ def load_from_gcs(timestamp: str = None, object_fn:str = None):
         gs = storage.Client()
         bucket = gs.bucket(bucket_name)
         blob = bucket.blob(blob_name)
-        file_path = Path("/tmp") / timestamp / object_fn
+        file_path = Path("/tmp") / object_fn
         blob.download_to_filename(file_path)
         with open(file_path, 'rb') as f:
             if method == "pkl":
@@ -117,11 +117,11 @@ def start(request):
     
     y_pred = predict(X_pred, model)
     logging.info(f"start: preds: {y_pred}")
-    return y_pred, 200
+    return "OK", 200
 
 def main(request):
     try:
         return start(request)
     except Exception:
-        logging.error(traceback.format_exe(), extra={"labels": {"version": __version__ }})
+        logging.error(traceback.format_exc(), extra={"labels": {"version": __version__ }})
         raise RuntimeError
