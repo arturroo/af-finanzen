@@ -110,7 +110,7 @@ def start(request):
     logging.info(f"start: start")
     
     timestamp, vectorizer_fn, model_fn, test_text, month = parse_request(request)
-    raw_data = load_test_data(month) if not test_text else test_text
+    raw_data = load_test_data(month) if test_text is None else test_text
     fe = FeatureEngineering(raw_data, load_from_gcs(timestamp, vectorizer_fn))
     X_pred = fe.get_features()
     model = load_from_gcs(timestamp, model_fn)
@@ -123,5 +123,5 @@ def main(request):
     try:
         return start(request)
     except Exception:
-        logging.error(traceback.format_exec(), extra={"labels": {"version": __version__ }})
+        logging.error(traceback.format_exe(), extra={"labels": {"version": __version__ }})
         raise RuntimeError

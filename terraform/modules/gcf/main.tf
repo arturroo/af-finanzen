@@ -7,6 +7,12 @@
 # __maintainer__ = "Artur Fejklowicz"
 # __status__ = "Production"
 
+locals {
+  cf_http = { for key, value in var.cf_names : key => value if (value["trigger_type"] == "http") }
+  cf_pubsub = { for key, value in var.cf_names : key => value if (value["trigger_type"] == "pubsub") }
+}
+
+
 # Generates an archive of the source code compressed as a .zip file.
 data "archive_file" "gcf_source" {
   for_each        = var.cf_names
@@ -28,9 +34,9 @@ resource "google_storage_bucket_object" "zip" {
 }
 
 # Create the Cloud function triggered by a `Finalize` event on the bucket
-resource "google_cloudfunctions_function" "cloud_function" {
-  for_each        = var.cf_names
-  name                  = each.key
+resource "google_cloudfunctions_function" "cf_pubsub" {
+  for_each        = local.cf_pubsub
+  name                  = try(each.value["name"], each.key)
   description           = try(each.value["description"], "Cloud-function ${each.key} in project ${var.project_id}")
   runtime               = try(each.value["runtime"], "python312")
   project               = var.project_id
@@ -38,10 +44,36 @@ resource "google_cloudfunctions_function" "cloud_function" {
   source_archive_bucket = var.gcf_bucket
   source_archive_object = google_storage_bucket_object.zip[each.key].name
   entry_point           = try(each.value["entry_point"], "main")
+
   event_trigger {
     event_type = "google.pubsub.topic.publish"
     resource   = "projects/${var.project_id}/topics/ps-${replace(each.key, "cf-", "")}"
   }
+  timeouts {
+    create = "20m"
+  }
+
+  depends_on = [
+    google_storage_bucket_object.zip
+  ]
+}
+
+resource "google_cloudfunctions_function" "cf_http" {
+  for_each        = local.cf_http
+  name                  = try(each.value["name"], each.key)
+  description           = try(each.value["description"], "Cloud-function ${each.key} in project ${var.project_id}")
+  runtime               = try(each.value["runtime"], "python312")
+  project               = var.project_id
+  region                = try(each.value["region"], "europe-west6")
+  source_archive_bucket = var.gcf_bucket
+  source_archive_object = google_storage_bucket_object.zip[each.key].name
+  entry_point           = try(each.value["entry_point"], "main")
+  
+  trigger_http = true
+  timeouts {
+    create = "20m"
+  }
+
   depends_on = [
     google_storage_bucket_object.zip
   ]

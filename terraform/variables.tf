@@ -194,12 +194,14 @@ variable "cf_names" {
             labels = {
                 "publisher" = "gs"
             }
+            trigger_type = "pubsub"
         }
-        # "cf-model-lr" = {
-        #     labels = {
-        #         # "publisher" = "gs"
-        #     }
-        # }
+        "cf-predict-lr" = {
+            labels = {
+                # "publisher" = "gs"
+            }
+            trigger_type = "http"
+        }
     }
 }
 

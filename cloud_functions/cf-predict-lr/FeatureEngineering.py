@@ -1,5 +1,5 @@
 import pandas as pd
-from nltk.corpus import stopwords
+#from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from typing import Union
 
