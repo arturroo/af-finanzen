@@ -15,7 +15,7 @@ class FeatureEngineering:
         else:
             self.vectorizer_type = 'unknown'
 
-        self.label_encoder = {'Others':0, 'PK Artur': 1, 'PK Leben': 2, 'PK Reisen': 3, 'SK Ferien': 4}
+        self.label_decoder = {0:'Others', 1:'PK Artur', 2:'PK Leben', 3:'PK Reisen', 4:'SK Ferien'}
     
 
     def get_features(self) -> pd.Series:

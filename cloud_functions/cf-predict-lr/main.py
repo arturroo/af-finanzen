@@ -117,6 +117,8 @@ def start(request):
     
     y_pred = predict(X_pred, model)
     logging.info(f"start: preds: {y_pred}")
+    logging.info(f"start: pred_labels: { [fe.label_decoder[pred_class] for pred_class in y_pred ] }")
+
     return "OK", 200
 
 def main(request):
