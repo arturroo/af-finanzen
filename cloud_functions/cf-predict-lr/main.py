@@ -48,8 +48,12 @@ def parse_request(request):
     test_text = None
     if test_text in request_json:
         test_text = pd.DataFrame({'description': [request_json['test_text']]})
-
     month = request_json['month'] if 'month' in request_json else None
+    logging.info(f"parse_request: timestamp: {timestamp}")
+    logging.info(f"parse_request: vectorizer_fn: {vectorizer_fn}")
+    logging.info(f"parse_request: model_fn: {model_fn}")
+    logging.info(f"parse_request: test_text: {test_text}")
+    logging.info(f"parse_request: month: {month} ")
 
     return timestamp, vectorizer_fn, model_fn, test_text, month
 

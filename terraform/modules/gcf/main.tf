@@ -70,7 +70,9 @@ resource "google_cloudfunctions_function" "cf_http" {
   entry_point           = try(each.value["entry_point"], "main")
   
   trigger_http = true
-  timeouts { create = "20m" }
+  timeouts {
+    create = "20m" 
+  }
   available_memory_mb = 1024
 
   depends_on = [
