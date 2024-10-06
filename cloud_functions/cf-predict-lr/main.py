@@ -46,7 +46,7 @@ def parse_request(request):
         raise ValueError(f"Error parsing request: {str(e)}")
 
     test_text = None
-    if test_text in request_json:
+    if "test_text" in request_json:
         test_text = pd.DataFrame({'description': [request_json['test_text']]})
     month = request_json['month'] if 'month' in request_json else None
     logging.info(f"parse_request: timestamp: {timestamp}")
