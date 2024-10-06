@@ -1,0 +1,47 @@
+[
+  { "name": "bank",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Points source bank for the data"
+  },
+  { "name": "training_dt",
+    "type": "INT64",
+    "mode": "nullable",
+    "description": "Timestamp as integer. This is part of the model and vectorizer path in GS"
+  },
+  { "name": "model",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "File name of the model in GS"
+  },
+  { "name": "vectorizer",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "File name of the vectorizer in GS"
+  },
+  { "name": "description",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Description for which prediction was done"
+  },
+  { "name": "pred_label",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Predicted label of the description"
+  },
+  { "name": "y_pred",
+    "type": "INT64",
+    "mode": "nullable",
+    "description": "Predicted class of the description"
+  },
+  { "name": "y_proba",
+    "type": "FLOAT64",
+    "mode": "repeated",
+    "description": "Probabilities of all classes"
+  },
+  { "name": "cre_ts ",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Timestamp of prediction"
+  }
+]

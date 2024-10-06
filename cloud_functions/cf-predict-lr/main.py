@@ -120,10 +120,16 @@ def start(request):
     model = load_from_gcs(timestamp, model_fn)
     
     y_pred = predict(X_pred, model)
-    logging.info(f"start: preds: {y_pred}")
-    logging.info(f"start: pred_labels: { [fe.label_decoder[pred_class] for pred_class in y_pred ] }")
-
-    return "OK", 200
+    # Prepare data for return
+    predictions = []
+    for description, pred_class in zip(raw_data['description'], y_pred):
+        pred_label=fe.label_decoder[pred_class]
+        logging.info(f"Description: '{description}' predicted Label: {pred_label}")    
+        predictions.append({
+            "Description": description,
+            "Predicted Label": pred_label
+        })
+    return {"predictions": predictions}, 200
 
 def main(request):
     try:

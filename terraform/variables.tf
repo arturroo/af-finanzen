@@ -51,6 +51,11 @@ variable "internal_tables" {
         #     dataset_id = "banks"
         #     schema = "bq-schemas/banks.revolut.json"
         # }
+        "predictions" = {
+            description = "Transak predictions. Models made by Artur Fejklowicz"
+            dataset_id = "banks"
+            schema = "bq-schemas/banks.predictions.json"
+        }
     }
 }
 
