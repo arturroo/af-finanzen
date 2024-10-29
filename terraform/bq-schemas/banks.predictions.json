@@ -4,25 +4,10 @@
     "mode": "nullable",
     "description": "Points source bank for the data"
   },
-  { "name": "training_dt",
-    "type": "INT64",
-    "mode": "nullable",
-    "description": "Timestamp as integer. This is part of the model and vectorizer path in GS"
-  },
-  { "name": "model",
-    "type": "STRING",
-    "mode": "nullable",
-    "description": "File name of the model in GS"
-  },
-  { "name": "vectorizer",
-    "type": "STRING",
-    "mode": "nullable",
-    "description": "File name of the vectorizer in GS"
-  },
   { "name": "description",
     "type": "STRING",
     "mode": "nullable",
-    "description": "Description for which prediction was done"
+    "description": "True label. Description for which prediction was done"
   },
   { "name": "pred_label",
     "type": "STRING",
@@ -39,8 +24,28 @@
     "mode": "repeated",
     "description": "Probabilities of all classes"
   },
-  { "name": "cre_ts ",
+  { "name": "training_dt",
+    "type": "INT64",
+    "mode": "nullable",
+    "description": "Timestamp as integer. This is part of the model and vectorizer path in GS"
+  },
+  { "name": "model_fn",
     "type": "STRING",
+    "mode": "nullable",
+    "description": "File name of the model in GS"
+  },
+  { "name": "vectorizer_fn",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "File name of the vectorizer in GS"
+  },
+  { "name": "month",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Month of source data creation"
+  },
+  { "name": "cre_ts",
+    "type": "TIMESTAMP",
     "mode": "nullable",
     "description": "Timestamp of prediction"
   }

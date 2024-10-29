@@ -48,6 +48,7 @@ resource "google_bigquery_dataset" "dataset" {
     location    = try(each.value["location"], "europe-west6")
     delete_contents_on_destroy  = try(each.value["delete_contents_on_destroy"], false)
     default_table_expiration_ms = try(each.value["default_table_expiration_ms"], null)
+    max_time_travel_hours = try(each.value["max_time_travel_hours"], 168)
 }
 
 resource "google_bigquery_table" "internal_table" {

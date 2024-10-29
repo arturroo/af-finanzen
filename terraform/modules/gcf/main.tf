@@ -44,6 +44,7 @@ resource "google_cloudfunctions_function" "cf_pubsub" {
   source_archive_bucket = var.gcf_bucket
   source_archive_object = google_storage_bucket_object.zip[each.key].name
   entry_point           = try(each.value["entry_point"], "main")
+  max_instances         = try(each.value["max_instances"], 5)
 
   event_trigger {
     event_type = "google.pubsub.topic.publish"

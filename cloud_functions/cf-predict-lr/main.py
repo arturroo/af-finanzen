@@ -13,8 +13,9 @@ from google.cloud import storage
 from google.cloud import bigquery
 # from flask import jsonify, request
 import os
-from datetime import datetime
+from datetime import datetime,timezone
 from FeatureEngineering import FeatureEngineering
+from TechInfo import TechInfo
 import pandas as pd
 from pathlib import Path
 import pickle
@@ -32,13 +33,14 @@ logging.getLogger('backoff').addHandler(logging.StreamHandler())
 
 # load sklearn logistic regression from file that is in google cloud storage
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'af-finanzen-banks')
+PRED_TABLE_NAME = os.environ.get('PRED_TABLE_NAME', 'banks.predictions')
 
 
-def parse_request(request):
+def parse_request(request) -> TechInfo:
     logging.info(f"parse_request: start")
     try:
         request_json = request.get_json()
-        timestamp = request_json['timestamp']
+        training_dt = request_json['training_dt']
         vectorizer_fn = request_json['vectorizer_fn']
         model_fn = request_json['model_fn']
     except Exception as e:
@@ -49,20 +51,23 @@ def parse_request(request):
     if "test_text" in request_json:
         test_text = pd.DataFrame({'description': [request_json['test_text']]})
     month = request_json['month'] if 'month' in request_json else None
-    logging.info(f"parse_request: timestamp: {timestamp}")
-    logging.info(f"parse_request: vectorizer_fn: {vectorizer_fn}")
-    logging.info(f"parse_request: model_fn: {model_fn}")
-    logging.info(f"parse_request: test_text: {test_text}")
-    logging.info(f"parse_request: month: {month} ")
+    ti = TechInfo({
+        'training_dt': training_dt,
+        'vectorizer_fn': vectorizer_fn,
+        'model_fn': model_fn,
+        'test_text': test_text,
+        'month': month
+    })
+    logging.info(f"parse_request: tech_info: {ti.get_all()}" )
 
-    return timestamp, vectorizer_fn, model_fn, test_text, month
+    return ti
 
 @backoff.on_exception(backoff.expo, Exception, max_tries=5)
-def load_from_gcs(timestamp: str = None, object_fn:str = None):
+def load_from_gcs(training_dt: str = None, object_fn:str = None):
     """Loads the model or vectorizer from Google Cloud Storage."""
     bucket_name = "af-finanzen-banks"
     method = object_fn.split(".")[-1]
-    blob_name = f"models/lr/{timestamp}/{object_fn}"
+    blob_name = f"models/lr/{training_dt}/{object_fn}"
 
     try:
         gs = storage.Client()
@@ -107,29 +112,56 @@ def predict(X_pred, model):
     y_pred_proba = model.predict_proba(X_pred)
     logging.info(f"predict: y_pred {y_pred}")
     logging.info(f"predict: y_pred_proba {y_pred_proba}")
-    return y_pred
+    return y_pred, y_pred_proba
+
+def make_rows(label_decoder, raw_data, y_pred, y_pred_proba, tech_info):
+    now_utc=datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+    logging.info(f"make_rows: now_utc {now_utc}")
+    json_rows = []
+    for i, row in raw_data.iterrows():
+        json_rows.append({
+            'bank': 'Revolut',
+            'description': row['description'],
+            'pred_label': label_decoder[y_pred[i]],
+            'y_pred': y_pred[i].tolist(),
+            'y_proba': y_pred_proba[i].tolist(),
+            'training_dt': tech_info.training_dt,
+            'vectorizer_fn': tech_info.vectorizer_fn,
+            'model_fn': tech_info.model_fn,
+            'month': tech_info.month,
+            'cre_ts': "AUTO"
+        })
+    return json_rows
+
+@backoff.on_exception(backoff.expo, Exception, max_tries=5)
+def save2bq(label_decoder, raw_data, y_pred, y_pred_proba, tech_info):
+    json_rows = make_rows(label_decoder, raw_data, y_pred, y_pred_proba, tech_info)
+    bq = bigquery.Client()
+    table = bq.get_table(PRED_TABLE_NAME)
+    return bq.insert_rows_json(table, json_rows) #, ignore_unknown_values=True)
 
 def start(request):
     """Starts loading of model, processing of features and prediction."""
     logging.info(f"start: start")
     
-    timestamp, vectorizer_fn, model_fn, test_text, month = parse_request(request)
-    raw_data = load_test_data(month) if test_text is None else test_text
-    fe = FeatureEngineering(raw_data, load_from_gcs(timestamp, vectorizer_fn))
+    ti = parse_request(request)
+    raw_data = load_test_data(ti.month) if ti.test_text is None else ti.test_text
+    fe = FeatureEngineering(raw_data, load_from_gcs(ti.training_dt, ti.vectorizer_fn))
     X_pred = fe.get_features()
-    model = load_from_gcs(timestamp, model_fn)
+    model = load_from_gcs(ti.training_dt, ti.model_fn)
     
-    y_pred = predict(X_pred, model)
+    y_pred, y_pred_proba = predict(X_pred, model)
+    errors = save2bq(fe.label_decoder, raw_data, y_pred, y_pred_proba, ti)
+
     # Prepare data for return
-    predictions = []
+    predictions_txt = []
     for description, pred_class in zip(raw_data['description'], y_pred):
         pred_label=fe.label_decoder[pred_class]
-        logging.info(f"Description: '{description}' predicted Label: {pred_label}")    
-        predictions.append({
+        predictions_txt.append({
             "Description": description,
             "Predicted Label": pred_label
         })
-    return {"predictions": predictions}, 200
+    return {"predictions": predictions_txt, "errors": errors, "version": __version__}, 200
 
 def main(request):
     try:
