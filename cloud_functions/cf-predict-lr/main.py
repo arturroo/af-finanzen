@@ -122,6 +122,7 @@ def make_rows(label_decoder, raw_data, y_pred, y_pred_proba, tech_info):
         json_rows.append({
             'bank': 'Revolut',
             'description': row['description'],
+            'true_label': None,
             'pred_label': label_decoder[y_pred[i]],
             'y_pred': y_pred[i].tolist(),
             'y_proba': y_pred_proba[i].tolist(),

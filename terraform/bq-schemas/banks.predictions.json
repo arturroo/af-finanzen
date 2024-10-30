@@ -7,7 +7,12 @@
   { "name": "description",
     "type": "STRING",
     "mode": "nullable",
-    "description": "True label. Description for which prediction was done"
+    "description": "Description for which prediction was done"
+  },
+  { "name": "true_label",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "True label from human annotation post prediction (ML Model supports human)"
   },
   { "name": "pred_label",
     "type": "STRING",
