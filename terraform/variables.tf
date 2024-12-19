@@ -208,6 +208,11 @@ variable "cf_names" {
             }
             trigger_type = "http"
         }
+        "cf-pdfminions" = {
+            labels = {
+            }
+            trigger_type = "http"
+        }
     }
 }
 

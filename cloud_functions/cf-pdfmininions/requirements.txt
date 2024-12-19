@@ -1,0 +1,2 @@
+google-cloud-secret-manager==2.22.0
+langchain==0.3.13
