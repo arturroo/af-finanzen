@@ -28,7 +28,7 @@ variable "gs_notifications" {
     default = {
         "ubs" = {
             bucket = "banks"
-            object_name_prefix = "ubs/raw"
+            object_name_prefix = "raw/ubs/"
             topic = "ps-transform-csv"
         }
     }

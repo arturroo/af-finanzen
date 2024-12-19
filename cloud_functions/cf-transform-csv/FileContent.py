@@ -107,7 +107,7 @@ class FileContent:
         self.object_id_transformed = f"ubs/Monat={self.year}-{self.month}/ubs_{self.year}-{self.month}_transactions.csv"
         try:
             blob = self.bucket.blob(self.object_id_transformed)
-            blob.upload_from_string(self._get_content())
+            blob.upload_from_string(self._get_content().encode('latin1'))
         except Exception as e:
             logging.error(f"Could not save the Blob to Google Storage {self.object_id_transformed}: {e}")
             raise RuntimeError(f"Could not save the Blob to Google Storage {self.object_id_transformed}: {e}")
