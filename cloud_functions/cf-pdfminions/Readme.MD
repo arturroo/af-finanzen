@@ -4,5 +4,5 @@ Using gcloud functions call (CLI):
 gcloud functions call cf-pdfminions \
   --project=af-finanzen \
   --region=europe-west6 \
-  --data='{"gs_path": "gs://af-finanzen-banks/raw/zak/Kontoauszug Nov. 2024.pdf"}'
+  --data='{"gs_path": "gs://{bucket_name}/{pdf_file_object_name.pdf"}'
 ```
