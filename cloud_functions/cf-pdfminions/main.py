@@ -1,11 +1,14 @@
 __author__ = "artur.fejklowicz@gmail.com"
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 __doc__ = """
 Minions are AI Agents, that cooperate to extract table with bank transactions from PDF File.
 In Bank ZAK (Cler) the only way to get the transactions is to download PDF for particular month from mobile app. This pdf has many various informations, including list of transactions. Tasks for Minions:
-- Extract transactions to CSV Format - format will be specified in prompt
-- Check if exported data are really CSV
-- Check if integers do not have thousand high commas
+- Agent Supervisor: Manage workflow
+- Agent Extractor: Extract transactions to CSV Format - format will be specified in prompt
+- Agent CSVChecker: Check if exported data are really CSV
+- Agent IntChecker: Check if integers do not have thousand high commas
+Agent Framework: LangChain
+Agent LLM Model: Google Gemini
 """
 
 import logging
@@ -16,12 +19,41 @@ import os
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_google_vertexai import ChatVertexAI
 
+from typing import Literal
+from typing_extensions import TypedDict
+
+from langgraph.graph import MessagesState
+from langgraph.types import Command
+
 
 # setup logging
 log_client = google.cloud.logging.Client()
 log_client.setup_logging()
 logging.basicConfig(level=logging.INFO)
 logging.getLogger('backoff').addHandler(logging.StreamHandler())
+
+members = ["extractor", "csv_checker", "int_checker"]
+# Our team supervisor is an LLM node. It just picks the next agent to process
+# and decides when the work is completed
+options = members + ["FINISH"]
+
+class Router(TypedDict):
+    """Worker to route to next. If no workers needed, route to FINISH."""
+
+    next: Literal[*options]
+
+
+def supervisor_node(state: MessagesState) -> Command[Literal[*members, "__end__"]]:
+    messages = [
+        {"role": "system", "content": system_prompt},
+    ] + state["messages"]
+    response = llm.with_structured_output(Router).invoke(messages)
+    goto = response["next"]
+    if goto == "FINISH":
+        goto = END
+
+    return Command(goto=goto)
+
 
 def parse_request(request) -> str:
     logging.info(f"parse_request: start")
@@ -42,8 +74,19 @@ def start(request):
     # Parse request
     gs_path = parse_request(request)
 
+    # Create Agent Supervisor
+
+    system_prompt = (
+    "You are a supervisor tasked with managing a conversation between the"
+    f" following workers: {members}. Given the following user request,"
+    " respond with the worker to act next. Each worker will perform a"
+    " task and respond with their results and status. When finished,"
+    " respond with FINISH."
+    )
+
+
     llm = ChatVertexAI(
-        model="gemini-1.5-pro-001",
+        model="gemini-2.0-flash-exp",
         temperature=0,
         max_tokens=8192,
         timeout=None,
