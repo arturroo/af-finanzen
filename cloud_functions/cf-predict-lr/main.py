@@ -20,6 +20,7 @@ import pandas as pd
 from pathlib import Path
 import pickle
 import joblib
+from io import StringIO
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -132,14 +133,31 @@ def make_rows(label_decoder, raw_data, y_pred, y_pred_proba, tech_info):
             'month': tech_info.month,
             'cre_ts': "AUTO"
         })
-    return json_rows
+    rows_count = len(json_rows)
+    nd_json_rows = "\n".join([str(row) for row in json_rows])
+    return nd_json_rows, rows_count
 
 @backoff.on_exception(backoff.expo, Exception, max_tries=5)
-def save2bq(label_decoder, raw_data, y_pred, y_pred_proba, tech_info):
-    json_rows = make_rows(label_decoder, raw_data, y_pred, y_pred_proba, tech_info)
+def load2bq(label_decoder, raw_data, y_pred, y_pred_proba, tech_info):
+    nd_json_rows, rows_count = make_rows(label_decoder, raw_data, y_pred, y_pred_proba, tech_info)
     bq = bigquery.Client()
     table = bq.get_table(PRED_TABLE_NAME)
-    return bq.insert_rows_json(table, json_rows) #, ignore_unknown_values=True)
+
+    # return bq.insert_rows_json(table, json_rows) #, ignore_unknown_values=True)
+    logging.info(f"load2bq: Inserting {rows_count} predictions into BigQuery table {PRED_TABLE_NAME}")
+    # Configure upload for batch loading
+    job_config = bigquery.LoadJobConfig(
+        write_disposition="WRITE_APPEND",
+        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+    )
+    # Load the data
+    job = bq.load_table_from_file(
+        StringIO(nd_json_rows), table, job_config=job_config
+    ) 
+    job.result()
+
+    return job
+
 
 def start(request):
     """Starts loading of model, processing of features and prediction."""
@@ -152,7 +170,8 @@ def start(request):
     model = load_from_gcs(ti.training_dt, ti.model_fn)
     
     y_pred, y_pred_proba = predict(X_pred, model)
-    errors = save2bq(fe.label_decoder, raw_data, y_pred, y_pred_proba, ti)
+    job = load2bq(fe.label_decoder, raw_data, y_pred, y_pred_proba, ti)
+    errors = job.errors
 
     # Prepare data for return
     predictions_txt = []
