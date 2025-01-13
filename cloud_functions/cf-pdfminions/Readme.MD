@@ -10,6 +10,7 @@ Framework: LangGraph
 LLM Model: Google Gemini
 
 Supervisor Architecture
+
 ![Supervisor Architecture](AF_Supervisor_Graph.png)
 
 # Local DevEnv
