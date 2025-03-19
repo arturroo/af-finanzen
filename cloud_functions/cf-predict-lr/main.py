@@ -8,6 +8,7 @@ Vectorizes the raw data and performs prediction.
 import logging
 import traceback
 import backoff
+import json
 import google.cloud.logging
 from google.cloud import storage
 from google.cloud import bigquery
@@ -35,6 +36,7 @@ logging.getLogger('backoff').addHandler(logging.StreamHandler())
 # load sklearn logistic regression from file that is in google cloud storage
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'af-finanzen-banks')
 PRED_TABLE_NAME = os.environ.get('PRED_TABLE_NAME', 'banks.predictions')
+DEBUG_MODE = os.getenv("DEBUG", "false").lower() == "true"
 
 
 def parse_request(request) -> TechInfo:
@@ -52,16 +54,19 @@ def parse_request(request) -> TechInfo:
     if "test_text" in request_json:
         test_text = pd.DataFrame({'description': [request_json['test_text']]})
     month = request_json['month'] if 'month' in request_json else None
+    debug = DEBUG_MODE or ("debug" in request_json and request_json.get("debug", "false").lower() == "true")
     ti = TechInfo({
         'training_dt': training_dt,
         'vectorizer_fn': vectorizer_fn,
         'model_fn': model_fn,
         'test_text': test_text,
-        'month': month
+        'month': month,
+        'debug': debug
     })
     logging.info(f"parse_request: tech_info: {ti.get_all()}" )
 
     return ti
+
 
 @backoff.on_exception(backoff.expo, Exception, max_tries=5)
 def load_from_gcs(training_dt: str = None, object_fn:str = None):
@@ -106,6 +111,7 @@ def load_test_data(month: str = None):
     except Exception as e:
         raise Exception(f"Error loading test data: {str(e)}")
 
+
 def predict(X_pred, model):
     """Handles prediction requests."""
     logging.info(f"predict: starting prediction for {X_pred}")
@@ -115,27 +121,31 @@ def predict(X_pred, model):
     logging.info(f"predict: y_pred_proba {y_pred_proba}")
     return y_pred, y_pred_proba
 
+
 def make_rows(label_decoder, raw_data, y_pred, y_pred_proba, tech_info):
-    now_utc=datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+    now_utc = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
     logging.info(f"make_rows: now_utc {now_utc}")
     json_rows = []
     for i, row in raw_data.iterrows():
         json_rows.append({
-            'bank': 'Revolut',
-            'description': row['description'],
-            'true_label': None,
-            'pred_label': label_decoder[y_pred[i]],
-            'y_pred': y_pred[i].tolist(),
-            'y_proba': y_pred_proba[i].tolist(),
-            'training_dt': tech_info.training_dt,
-            'vectorizer_fn': tech_info.vectorizer_fn,
-            'model_fn': tech_info.model_fn,
-            'month': tech_info.month,
-            'cre_ts': "AUTO"
+            "bank": "Revolut",
+            "description": row['description'],
+            "true_label": None,
+            "pred_label": label_decoder[y_pred[i]],
+            "y_pred": y_pred[i].tolist(),
+            "y_proba": y_pred_proba[i].tolist(),
+            "training_dt": tech_info.training_dt,
+            "vectorizer_fn": tech_info.vectorizer_fn,
+            "model_fn": tech_info.model_fn,
+            "month": tech_info.month,
+            "cre_ts": now_utc # in batch load there is no AUTO, only in streaming,
+            # but then I can not update true labels immediately after load, so this has default value in schema
+            # but this also do not work, so I ended with building timestamp myself
         })
     rows_count = len(json_rows)
-    nd_json_rows = "\n".join([str(row) for row in json_rows])
+    nd_json_rows = "\n".join([json.dumps(row) for row in json_rows])
     return nd_json_rows, rows_count
+
 
 @backoff.on_exception(backoff.expo, Exception, max_tries=5)
 def load2bq(label_decoder, raw_data, y_pred, y_pred_proba, tech_info):
@@ -143,18 +153,25 @@ def load2bq(label_decoder, raw_data, y_pred, y_pred_proba, tech_info):
     bq = bigquery.Client()
     table = bq.get_table(PRED_TABLE_NAME)
 
-    # return bq.insert_rows_json(table, json_rows) #, ignore_unknown_values=True)
     logging.info(f"load2bq: Inserting {rows_count} predictions into BigQuery table {PRED_TABLE_NAME}")
-    # Configure upload for batch loading
-    job_config = bigquery.LoadJobConfig(
-        write_disposition="WRITE_APPEND",
-        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
-    )
-    # Load the data
-    job = bq.load_table_from_file(
-        StringIO(nd_json_rows), table, job_config=job_config
-    ) 
-    job.result()
+    if tech_info.debug:
+        logging.info(f"load2bq: nd_json_rows: {nd_json_rows}")
+
+    try:
+        # Load the data
+        job_config = bigquery.LoadJobConfig(
+            write_disposition="WRITE_APPEND",
+            source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+        )
+        job = bq.load_table_from_file(
+            StringIO(nd_json_rows), table, job_config=job_config
+        )
+        job.result()
+        if job.errors:
+            logging.error(f"load2bq: Errors loading data to BigQuery: {job.errors}")
+    except Exception as e:
+        logging.error(f"load2bq: Error loading data to BigQuery: {str(e)}")
+        raise Exception(f"Error loading data to BigQuery: {str(e)}")
 
     return job
 
@@ -182,6 +199,7 @@ def start(request):
             "Predicted Label": pred_label
         })
     return {"predictions": predictions_txt, "errors": errors, "version": __version__}, 200
+
 
 def main(request):
     try:

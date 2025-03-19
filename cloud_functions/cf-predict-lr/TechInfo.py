@@ -5,6 +5,7 @@ class TechInfo:
         self.model_fn = tech_info['model_fn']
         self.test_text = tech_info['test_text']
         self.month = tech_info['month']
+        self.debug = tech_info['debug']
         self.tech_info = tech_info
 
     def get_all(self) -> dict:

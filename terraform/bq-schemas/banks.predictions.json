@@ -52,6 +52,7 @@
   { "name": "cre_ts",
     "type": "TIMESTAMP",
     "mode": "nullable",
-    "description": "Timestamp of prediction"
+    "description": "Timestamp of prediction",
+    "defaultValueExpression": "CURRENT_TIMESTAMP()"
   }
 ]

@@ -41,6 +41,14 @@ variable "datasets" {
             description = "Raw data from banks"
             max_time_travel_hours = 168
         }
+        "shops" = {
+            description = "Raw data from shops"
+            max_time_travel_hours = 168
+        }
+        "analytics" = {
+            description = "Output data for analytics"
+            max_time_travel_hours = 168
+        }
     }
 }
 
@@ -158,6 +166,11 @@ variable "views" {
             description = "Revolut transactions unique description indicator first_started"
             dataset_id = "banks"
             query_file = "bq-views/banks.revolut_v.sql"
+        }
+        "sankey_v" = {
+            description = "Diagram Sankey data"
+            dataset_id = "analytics"
+            query_file = "bq-views/analytics.sankey.sql"
         }
     }
 }

@@ -3,6 +3,9 @@
 .env.tmp
 .langgraph_api
 
+# old files
+.old
+
 .terraform
 .terraform.lock.hcl
 .idea
