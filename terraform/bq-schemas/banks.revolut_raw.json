@@ -1,9 +1,4 @@
 [
-  { "name": "tid",
-    "type": "integer",
-    "mode": "nullable",
-    "description": "A unique identifier for each transaction."
-  },
   { "name": "type",
     "type": "string",
     "mode": "nullable",
@@ -12,7 +7,7 @@
   { "name": "product",
     "type": "string",
     "mode": "nullable",
-    "description": "For examle: Current, etc."
+    "description": "Currently (2025-03-21): Current."
   },
   { "name": "started",
     "type": "datetime",
@@ -59,20 +54,5 @@
     "description": "The account balance after this transaction was applied. This is very useful for reconciling transactions.",
     "precision": "10",
     "scale": "2"
-  },
-  { "name": "account",
-    "type": "string",
-    "mode": "nullable",
-    "description": "The Revolut account from which transaction was made."
-  },
-  { "name": "month",
-    "type": "integer",
-    "mode": "nullable",
-    "description": "Month in which the transaction was made. This is partition key. Format: YYYYMM as intiger."
-  },
-  { "name": "first_started",
-    "type": "datetime",
-    "mode": "nullable",
-    "description": "Feature: datetime when transaction was started for the first time."
   }
 ]

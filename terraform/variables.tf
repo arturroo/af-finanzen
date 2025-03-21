@@ -55,11 +55,21 @@ variable "datasets" {
 variable "internal_tables" {
     description = "BigQuery internal tables"
     default = {
-        # "revolut" = {
-        #     description = "Revolut transactions"
-        #     dataset_id = "banks"
-        #     schema = "bq-schemas/banks.revolut.json"
-        # }
+        "revolut" = {
+            description = "Revolut transactions internal table with transaction ID and one feature first_started"
+            dataset_id = "banks"
+            clustering = ["type", "state"]
+            schema = "bq-schemas/banks.revolut.json"
+            range_partitioning = {
+                field = "month"
+                range = {
+                    start = 201801
+                    end = 203801
+                    interval = 1
+                }
+            }
+            
+        }
         "predictions" = {
             description = "Transak predictions. Models made by Artur Fejklowicz"
             dataset_id = "banks"
@@ -71,14 +81,14 @@ variable "internal_tables" {
 variable "external_tables" {
     description = "BigQuery external tables"
     default = {
-        "revolut" = {
+        "revolut_raw" = {
             description = "Revolut transactions"
             dataset_id = "banks"
             external_data_configuration = {
                 autodetect  = false
-                schema      = "bq-schemas/banks.revolut.json"
+                schema      = "bq-schemas/banks.revolut_raw.json"
                 source_uris = [
-                    "gs://af-finanzen-banks/revolut/*",
+                    "gs://af-finanzen-banks/revolut_raw/*",
                 ]
                 csv_options = {
                     quote               = "\""
@@ -93,7 +103,7 @@ variable "external_tables" {
                     # 2023-07-02
                     # In this case Schema from JSON file is respected but without parameters.
                     # So the column amount is Numeric but without scale and precision parameters
-                    source_uri_prefix = "gs://af-finanzen-banks/revolut/"
+                    source_uri_prefix = "gs://af-finanzen-banks/revolut_raw/"
                 }
 
             }
@@ -155,7 +165,7 @@ variable "external_tables" {
 }
 
 variable "views" {
-    description = "BigQuery external tables"
+    description = "BigQuery views"
     default = {
         "ubs_v" = {
             description = "UBS transactions with datetime transformations"
