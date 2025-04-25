@@ -1,0 +1,43 @@
+[
+  { "name": "tid",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Transaction ID for which prediction was done (unique JOIN key)"
+  },
+  { "name": "bank",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Points source bank for the data"
+  },
+  { "name": "pred_label",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Predicted label"
+  },
+  { "name": "pred_ts",
+    "type": "TIMESTAMP",
+    "mode": "nullable",
+    "description": "Timestamp of prediction",
+    "defaultValueExpression": "CURRENT_TIMESTAMP()"
+  },
+  { "name": "y_pred",
+    "type": "INT64",
+    "mode": "nullable",
+    "description": "Predicted class index"
+  },
+  { "name": "y_proba",
+    "type": "FLOAT64",
+    "mode": "repeated",
+    "description": "Probabilities of all classes"
+  },
+  { "name": "mid",
+    "type": "INT64",
+    "mode": "nullable",
+    "description": "Model ID in model metadata table"
+  },
+  { "name": "vid",
+    "type": "INT64",
+    "mode": "nullable",
+    "description": "Vectorizer ID or Embeddings ID in vectorizer metadata table"
+  }
+]

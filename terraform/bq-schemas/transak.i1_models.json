@@ -1,0 +1,32 @@
+[
+  { "name": "mid",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Transaction ID for which prediction was done (unique JOIN key)"
+  },
+  { "name": "banks",
+    "type": "STRING",
+    "mode": "repeated",
+    "description": "Banks list for which model was trained."
+  },
+  { "name": "training_dt",
+    "type": "INT64",
+    "mode": "nullable",
+    "description": "Model training date (Europe/Zurich) as INT (YYYYMMDDhhmmss). To build saved model path in order to load the model during prediction."
+  },
+  { "name": "model_fn",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Model file name."
+  },
+  { "name": "estimator_cn",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Estimator class name used to build model."
+  },
+  { "name": "class_index_mapping",
+    "type": "STRING",
+    "mode": "repeated",
+    "description": "Maps training class indexes to their descriptions."
+  }
+]

@@ -2,57 +2,57 @@
   { "name": "bank",
     "type": "STRING",
     "mode": "nullable",
-    "description": "Points source bank for the data"
+    "description": "Points source bank for the data."
   },
   { "name": "description",
     "type": "STRING",
     "mode": "nullable",
-    "description": "Description for which prediction was done"
+    "description": "Description for which prediction was done."
   },
   { "name": "true_label",
     "type": "STRING",
     "mode": "nullable",
-    "description": "True label from human annotation post prediction (ML Model supports human)"
+    "description": "True label from human annotation post prediction (ML Model supports human)."
   },
   { "name": "pred_label",
     "type": "STRING",
     "mode": "nullable",
-    "description": "Predicted label of the description"
+    "description": "Predicted label of the description."
   },
   { "name": "y_pred",
     "type": "INT64",
     "mode": "nullable",
-    "description": "Predicted class of the description"
+    "description": "Predicted class of the description."
   },
   { "name": "y_proba",
     "type": "FLOAT64",
     "mode": "repeated",
-    "description": "Probabilities of all classes"
+    "description": "Probabilities of all classes."
   },
   { "name": "training_dt",
     "type": "INT64",
     "mode": "nullable",
-    "description": "Timestamp as integer. This is part of the model and vectorizer path in GS"
+    "description": "Timestamp as integer. This is part of the model and vectorizer path in GS."
   },
   { "name": "model_fn",
     "type": "STRING",
     "mode": "nullable",
-    "description": "File name of the model in GS"
+    "description": "File name of the model in GS."
   },
   { "name": "vectorizer_fn",
     "type": "STRING",
     "mode": "nullable",
-    "description": "File name of the vectorizer in GS"
+    "description": "File name of the vectorizer in GS."
   },
   { "name": "month",
-    "type": "STRING",
+    "type": "INT64",
     "mode": "nullable",
-    "description": "Month of source data creation"
+    "description": "Month in which the transaction was made. Format: YYYYMM as intiger."
   },
   { "name": "cre_ts",
     "type": "TIMESTAMP",
     "mode": "nullable",
-    "description": "Timestamp of prediction",
+    "description": "Timestamp of prediction.",
     "defaultValueExpression": "CURRENT_TIMESTAMP()"
   }
 ]

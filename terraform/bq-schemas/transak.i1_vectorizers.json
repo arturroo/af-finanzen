@@ -1,0 +1,27 @@
+[
+  { "name": "vid",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Transaction ID for which prediction was done (unique JOIN key)"
+  },
+  { "name": "banks",
+    "type": "STRING",
+    "mode": "repeated",
+    "description": "Banks list for which model was trained."
+  },
+  { "name": "training_dt",
+    "type": "INT64",
+    "mode": "nullable",
+    "description": "Model training date (Europe/Zurich) as INT (YYYYMMDDhhmmss). To build saved model path in order to load the model during prediction."
+  },
+  { "name": "vectorizer_fn",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Model file name."
+  },
+  { "name": "vectorizer_cn",
+    "type": "STRING",
+    "mode": "nullable",
+    "description": "Vecorizer class name used for feature engineering."
+  }
+]

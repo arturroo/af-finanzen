@@ -35,7 +35,7 @@ logging.getLogger('backoff').addHandler(logging.StreamHandler())
 
 # load sklearn logistic regression from file that is in google cloud storage
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'af-finanzen-banks')
-PRED_TABLE_NAME = os.environ.get('PRED_TABLE_NAME', 'banks.predictions')
+PRED_TABLE_NAME = os.environ.get('PRED_TABLE_NAME', 'transak.i0_predictions')
 DEBUG_MODE = os.getenv("DEBUG", "false").lower() == "true"
 
 
@@ -53,7 +53,7 @@ def parse_request(request) -> TechInfo:
     test_text = None
     if "test_text" in request_json:
         test_text = pd.DataFrame({'description': [request_json['test_text']]})
-    month = request_json['month'] if 'month' in request_json else None
+    month = int(request_json['month']) if 'month' in request_json else None
     debug = DEBUG_MODE or ("debug" in request_json and request_json.get("debug", "false").lower() == "true")
     ti = TechInfo({
         'training_dt': training_dt,
@@ -95,17 +95,17 @@ def load_from_gcs(training_dt: str = None, object_fn:str = None):
 
 
 @backoff.on_exception(backoff.expo, Exception, max_tries=5)
-def load_test_data(month: str = None):
+def load_test_data(month: int = None):
     """Loads test data from Google BigQuery."""
     if not month:
-        month = datetime.now().strftime('%Y-%m')
+        month = int(datetime.now().strftime('%Y%m'))
     logging.info(f"load_test_data: Loading test data for month {month}")
     try:
         bq = bigquery.Client()
         query = f"""
             SELECT DISTINCT description
             FROM banks.revolut_v
-            WHERE month = "{month}"
+            WHERE month = {month}
         """
         return bq.query(query).to_dataframe()
     except Exception as e:

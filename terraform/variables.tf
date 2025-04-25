@@ -49,7 +49,14 @@ variable "datasets" {
             description = "Output data for analytics"
             max_time_travel_hours = 168
         }
-    }
+        "transak" = {
+            description = "Transak project data"
+            max_time_travel_hours = 168
+        }
+        "monatsabschluss" = {
+            description = "Abrechnungen von Monaten"
+            max_time_travel_hours = 168
+        }    }
 }
 
 variable "internal_tables" {
@@ -70,11 +77,26 @@ variable "internal_tables" {
             }
             
         }
-        "predictions" = {
-            description = "Transak predictions. Models made by Artur Fejklowicz"
-            dataset_id = "banks"
-            schema = "bq-schemas/banks.predictions.json"
+        "i0_predictions" = {
+            description = "Transak predictions. Iteration 0 of agile plan."
+            dataset_id = "transak"
+            schema = "bq-schemas/transak.i0_predictions.json"
         }
+        "i1_predictions" = {
+            description = "Transak predictions. Iteration 1 of agile plan."
+            dataset_id = "transak"
+            schema = "bq-schemas/transak.i1_predictions.json"
+        }
+        "i1_models" = {
+            description = "Transak models metadata. Iteration 1 of agile plan."
+            dataset_id = "transak"
+            schema = "bq-schemas/transak.i1_models.json"
+        }
+        "i1_vectorizers" = {
+            description = "Transak vectorizers or embeddings metadata. Iteration 1 of agile plan."
+            dataset_id = "transak"
+            schema = "bq-schemas/transak.i1_vectorizers.json"
+        }    
     }
 }
 
@@ -180,8 +202,14 @@ variable "views" {
         "sankey_v" = {
             description = "Diagram Sankey data"
             dataset_id = "analytics"
-            query_file = "bq-views/analytics.sankey.sql"
+            query_file = "bq-views/analytics.sankey_v.sql"
         }
+        # AF20250327 Problem with organization and gdrive, see Gemini Chat. Created manually.
+        # "revolut_abrechnung_v" = {
+        #     description = "Monatsabschluss revolut view"
+        #     dataset_id = "monatsabschluss"
+        #     query_file = "bq-views/monatsabschluss.revolut_abrechnung_v.sql"
+        # }
     }
 }
 
@@ -225,7 +253,7 @@ variable "cf_names" {
             }
             trigger_type = "pubsub"
         }
-        "cf-predict-lr" = {
+        "cf-i0-predict-lr" = {
             labels = {
                 # "publisher" = "gs"
             }

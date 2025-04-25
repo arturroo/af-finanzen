@@ -74,5 +74,10 @@
     "type": "datetime",
     "mode": "nullable",
     "description": "Feature: datetime when transaction was started for the first time."
+  },
+  { "name": "budget",
+    "type": "string",
+    "mode": "nullable",
+    "description": "Label to predict. Budget from which the transaction should be covered."
   }
 ]
