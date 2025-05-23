@@ -96,7 +96,7 @@ variable "internal_tables" {
             description = "Transak vectorizers or embeddings metadata. Iteration 1 of agile plan."
             dataset_id = "transak"
             schema = "bq-schemas/transak.i1_vectorizers.json"
-        }    
+        }
     }
 }
 
@@ -210,6 +210,11 @@ variable "views" {
         #     dataset_id = "monatsabschluss"
         #     query_file = "bq-views/monatsabschluss.revolut_abrechnung_v.sql"
         # }
+        "i1_data_revolut_v" = {
+            description = "Revolut transactions unique description indicator first_started. Iteration 1 of agile plan."
+            dataset_id = "transak"
+            query_file = "bq-views/transak.i1_data_revolut_v.sql"
+        }
     }
 }
 

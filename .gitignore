@@ -1,3 +1,6 @@
+# Data
+*.csv
+
 # Langchain
 .env
 .env.tmp

@@ -1,0 +1,87 @@
+[
+    {
+      "mode": "NULLABLE",
+      "name": "tid",
+      "type": "INTEGER"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "type",
+      "type": "STRING"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "product",
+      "type": "STRING"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "started",
+      "type": "TIMESTAMP"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "completed",
+      "type": "TIMESTAMP"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "description",
+      "type": "STRING"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "amount",
+      "type": "FLOAT"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "fee",
+      "type": "FLOAT"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "currency",
+      "type": "STRING"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "state",
+      "type": "STRING"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "balance",
+      "type": "FLOAT"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "account",
+      "type": "STRING"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "month",
+      "type": "INTEGER"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "first_started",
+      "type": "TIMESTAMP"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "true_label",
+      "type": "STRING"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "pred_label",
+      "type": "STRING"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "new_label",
+      "type": "STRING"
+    }
+]

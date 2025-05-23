@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wizualizacja Gaia Stars z Sgr A*, Słońcem i Etykietami (ładowanie z pliku)</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
+        #galaxyContainer { width: 100vw; height: 100vh; display: block; position: relative; } /* Dodano position: relative */
+        #info { position: absolute; top: 10px; width: 100%; text-align: center; z-index: 100; display:block; color: white; padding: 10px; background-color: rgba(0,0,0,0.7); border-radius: 5px; font-size: 1.1em; }
+        .loading { color: #ffcc00; font-weight: bold; }
+
+        /* Style dla etykiet HTML */
+        .label {
+            position: absolute; /* Pozycjonowanie względem kontenera */
+            background-color: rgba(0, 0, 0, 0.6); /* Lekko przezroczyste tło */
+            color: white;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            pointer-events: none; /* Etykiety nie przechwytują zdarzeń myszy */
+            white-space: nowrap; /* Zapobiega łamaniu tekstu */
+            transform: translate(-50%, -120%); /* Przesunięcie, aby tekst był nad punktem */
+            display: none; /* Domyślnie ukryte */
+            z-index: 10; /* Nad canvas */
+        }
+    </style>
+</head>
+<body>
+    <div id="galaxyContainer">
+        <div id="sgrALabel" class="label">Sgr A*</div>
+        <div id="sunLabel" class="label">Sun</div>
+    </div>
+    <div id="info">Ładowanie danych gwiazd...</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let starPoints; // System cząstek dla gwiazd Gaia
+        let sunPoint, sunLine;   // Punkt i linia dla Słońca
+        let blackHoleMesh, accretionDiskMesh; // Obiekty dla Sgr A*
+        const infoDiv = document.getElementById('info');
+        const galaxyContainer = document.getElementById('galaxyContainer'); // Kontener
+        const sgrALabel = document.getElementById('sgrALabel'); // Etykieta Sgr A*
+        const sunLabel = document.getElementById('sunLabel');   // Etykieta Słońca
+
+        // Zmienne pomocnicze do pozycjonowania etykiet
+        const labelOffset = new THREE.Vector3(0, 0.5, 0); // Małe przesunięcie etykiety Sgr A* w górę
+        const sunLabelOffset = new THREE.Vector3(0, 1, 0); // Przesunięcie etykiety Słońca
+
+        // --- Stałe i Konfiguracja ---
+        const SUN_DISTANCE_KPC = 8.0;
+        const GALAXY_VISUAL_RADIUS_KPC = 15.0;
+        const TARGET_VISUALIZATION_RADIUS = 100.0;
+        const ACCRETION_DISK_INNER_RADIUS = 0.47;
+        const ACCRETION_DISK_OUTER_RADIUS = 1.0;
+        const BLACK_HOLE_RADIUS = 0.17;
+
+        // Funkcja tworząca teksturę dla punktów gwiazd
+        function createPointTexture() { /* ... (bez zmian) ... */
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.1, 'rgba(255,255,255,0.9)');
+            gradient.addColorStop(0.4, 'rgba(200,200,255,0.3)');
+            gradient.addColorStop(1, 'rgba(150,150,255,0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 32, 32);
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+        const pointTexture = createPointTexture();
+
+        function initScene() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+            camera.position.z = 150;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            // Dodaj renderer do kontenera galaxyContainer
+            galaxyContainer.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 0.1;
+            controls.maxDistance = 2000;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.1;
+
+            createGalacticCenter();
+            createSun(); // Tworzy teraz też linię
+
+            window.addEventListener('resize', onWindowResize, false);
+            animate();
+        }
+
+        // Funkcja tworząca model Sgr A*
+        function createGalacticCenter() { /* ... (bez zmian w geometrii/materiałach) ... */
+            const blackHoleGeometry = new THREE.SphereGeometry(BLACK_HOLE_RADIUS, 32, 32);
+            const blackHoleMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, depthWrite: true });
+            blackHoleMesh = new THREE.Mesh(blackHoleGeometry, blackHoleMaterial);
+            blackHoleMesh.position.set(0, 0, 0);
+            scene.add(blackHoleMesh);
+
+            const diskGeometry = new THREE.RingGeometry(ACCRETION_DISK_INNER_RADIUS, ACCRETION_DISK_OUTER_RADIUS, 64);
+            const diskMaterial = new THREE.MeshBasicMaterial({ color: 0xff8800, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthWrite: true });
+            accretionDiskMesh = new THREE.Mesh(diskGeometry, diskMaterial);
+            accretionDiskMesh.position.set(0, 0, 0);
+            accretionDiskMesh.rotation.x = Math.PI / 3;
+            scene.add(accretionDiskMesh);
+            console.log("Dodano model Sgr A* w centrum (0, 0, 0).");
+        }
+
+        // Funkcja tworząca punkt i linię dla Słońca
+        function createSun() {
+            const sunGeometry = new THREE.BufferGeometry();
+            const sunScaledDistance = (SUN_DISTANCE_KPC / GALAXY_VISUAL_RADIUS_KPC) * TARGET_VISUALIZATION_RADIUS;
+            const sunPositionVec = new THREE.Vector3(0, 0, sunScaledDistance); // Pozycja jako Vector3
+            sunGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([sunPositionVec.x, sunPositionVec.y, sunPositionVec.z]), 3));
+
+            const sunMaterial = new THREE.PointsMaterial({
+                size: 2.5, color: 0xffff00, map: pointTexture, transparent: true,
+                sizeAttenuation: true, depthWrite: false, blending: THREE.NormalBlending
+            });
+            sunPoint = new THREE.Points(sunGeometry, sunMaterial);
+            scene.add(sunPoint);
+            console.log(`Dodano Słońce w przybliżonej pozycji: (${sunPositionVec.x}, ${sunPositionVec.y}, ${sunPositionVec.z.toFixed(2)})`);
+
+            // --- Tworzenie linii wskazującej na Słońce ---
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 1 }); // Żółta linia
+            const points = [];
+            points.push(sunPositionVec.clone()); // Początek linii w pozycji Słońca
+            // Koniec linii lekko odsunięty od Słońca (np. w górę)
+            const lineEndPoint = sunPositionVec.clone().add(new THREE.Vector3(0, 3, 0)); // Koniec 3 jednostki wyżej
+            points.push(lineEndPoint);
+
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            sunLine = new THREE.Line(lineGeometry, lineMaterial);
+            // Dodajemy obiekt userData do linii, aby łatwo znaleźć punkt końcowy dla etykiety
+            sunLine.userData.labelTargetPosition = lineEndPoint;
+            scene.add(sunLine);
+            console.log("Dodano linię wskazującą na Słońce.");
+        }
+
+        // Funkcja tworząca geometrię gwiazd Gaia
+        function createStarsFromData(starData) { /* ... (bez zmian w logice filtrowania i tworzenia geometrii) ... */
+            console.log("Tworzenie geometrii dla gwiazd Gaia...");
+            infoDiv.innerText = 'Przetwarzanie danych gwiazd...';
+            const geometry = new THREE.BufferGeometry();
+            const positions = [];
+            let filteredCount = 0;
+            for (const star of starData) {
+                if (star && star.length === 3) {
+                    const x = star[0], y = star[1], z = star[2];
+                    const distSq = x*x + y*y + z*z;
+                    if (distSq > ACCRETION_DISK_OUTER_RADIUS * ACCRETION_DISK_OUTER_RADIUS) {
+                        positions.push(x, y, z);
+                    } else {
+                        filteredCount++;
+                    }
+                }
+            }
+            console.log(`Odfiltrowano ${filteredCount} gwiazd blisko centrum.`);
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.computeBoundingSphere();
+            if (geometry.boundingSphere) {
+                 const radius = geometry.boundingSphere.radius;
+                 if (Math.abs(camera.position.z - 150) < 0.1) camera.position.z = radius * 1.5;
+                 controls.maxDistance = radius * 5 > 2000 ? radius * 5 : 2000;
+                 controls.update();
+                 console.log(`Dostosowano kamerę.`);
+            } else { console.warn("Nie można obliczyć boundingSphere."); }
+
+            const material = new THREE.PointsMaterial({
+                size: 0.5, sizeAttenuation: true, color: 0xffffff, map: pointTexture,
+                transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+            });
+            if (starPoints) { scene.remove(starPoints); starPoints.geometry.dispose(); starPoints.material.dispose(); }
+            starPoints = new THREE.Points(geometry, material);
+            scene.add(starPoints);
+            const displayedStars = positions.length / 3;
+            console.log(`Utworzono ${displayedStars} punktów gwiazd Gaia.`);
+            infoDiv.innerText = `Wyświetlono ${displayedStars} gwiazd (odfiltrowano ${filteredCount}). Obracaj myszą, przybliżaj kółkiem.`;
+        }
+
+        // Funkcja do ładowania danych JSON
+        async function loadStarData(filePath) { /* ... (bez zmian) ... */
+            infoDiv.innerHTML = '<span class="loading">Ładowanie danych gwiazd...</span>';
+            console.log(`Ładowanie danych z pliku: ${filePath}`);
+            try {
+                const response = await fetch(filePath);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                console.log(`Pomyślnie załadowano ${data.length} rekordów.`);
+                createStarsFromData(data);
+            } catch (error) {
+                console.error("Błąd podczas ładowania lub przetwarzania danych gwiazd:", error);
+                infoDiv.innerText = `Błąd ładowania danych: ${error.message}. Sprawdź konsolę.`;
+                infoDiv.style.color = 'red';
+            }
+        }
+
+        // Funkcja aktualizująca pozycję etykiety HTML
+        function updateLabelPosition(labelElement, targetObject, offset = new THREE.Vector3()) {
+            if (!labelElement || !targetObject || !camera) return;
+
+            // Pobierz pozycję świata obiektu docelowego (lub jego userData)
+            const worldPosition = new THREE.Vector3();
+            if (targetObject.userData.labelTargetPosition) {
+                worldPosition.copy(targetObject.userData.labelTargetPosition);
+            } else {
+                targetObject.getWorldPosition(worldPosition);
+            }
+            worldPosition.add(offset); // Dodaj ewentualne przesunięcie
+
+            // Przekształć pozycję świata na współrzędne ekranu (normalized device coordinates - NDC)
+            const screenPosition = worldPosition.project(camera);
+
+            // Sprawdź, czy punkt jest przed kamerą
+            const isInFront = screenPosition.z < 1;
+
+            if (isInFront) {
+                // Przekształć NDC na współrzędne pikselowe CSS
+                const x = (screenPosition.x * 0.5 + 0.5) * renderer.domElement.clientWidth;
+                const y = (-screenPosition.y * 0.5 + 0.5) * renderer.domElement.clientHeight;
+
+                // Ustaw pozycję etykiety
+                labelElement.style.left = `${x}px`;
+                labelElement.style.top = `${y}px`;
+                labelElement.style.display = 'block'; // Pokaż etykietę
+            } else {
+                // Ukryj etykietę, jeśli punkt jest za kamerą
+                labelElement.style.display = 'none';
+            }
+        }
+
+
+        function onWindowResize() { /* ... (bez zmian) ... */
+            if (!camera || !renderer) return;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (controls) controls.update();
+
+            // Aktualizacja pozycji etykiet w każdej klatce
+            updateLabelPosition(sgrALabel, blackHoleMesh, labelOffset); // Użyj blackHoleMesh jako celu dla Sgr A*
+            updateLabelPosition(sunLabel, sunLine, sunLabelOffset); // Użyj linii Słońca jako celu dla etykiety Sun
+
+            // Animacja dysku akrecyjnego
+            if (accretionDiskMesh) accretionDiskMesh.rotation.z += 0.005;
+
+            if (renderer && scene && camera) renderer.render(scene, camera);
+        }
+
+        // --- Start Aplikacji ---
+        window.onload = () => {
+            initScene();
+            loadStarData('star_positions.json');
+        };
+
+    </script>
+</body>
+</html>
