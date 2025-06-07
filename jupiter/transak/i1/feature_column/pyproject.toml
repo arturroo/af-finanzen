@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "transak-tf-fc"
+version = "0.1.0"
+description = "A project to train a Keras classification model on BigQuery data for assigning banks transaction to a home budget. It uses old Tensorflow tf.feature_conlumn API in order to use it as a preparation for GCP ML Engineer exam."
+authors = [
+  { name = "Artur Fejklowicz"},
+]
+requires-python = "~=3.9"
+
+dependencies = [
+    "tensorflow==2.12.1",
+    "numpy==1.23.5",
+    "pandas==1.5.3",
+    "google-cloud-bigquery[pandas,pyarray]==3.9.0",
+    "db-dtypes==1.0.5",
+    "scikit-learn==1.2.2",
+    "matplotlib==3.7.1",
+    "seaborn==0.12.2",
+    "ipykernel",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/aturroo/af-finanzen"
+"LinkedIn" = "https://www.linkedin.com/in/arturr/"
