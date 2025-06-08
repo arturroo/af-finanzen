@@ -12,14 +12,32 @@ authors = [
 requires-python = "~=3.9"
 
 dependencies = [
-    "tensorflow==2.12.1",
+    #"db-dtypes==1.0.5",
+    #"facets-overview==1.1.1",
+    #"google-cloud-bigquery[pandas,storage]==3.9.0",
+    #"ipykernel",
+    #"matplotlib==3.7.1",
+    #"numpy==1.23.5",
+    #"pandas==1.5.3",
+    #"scikit-learn==1.2.2",
+    #"seaborn==0.12.2",
+    #"tensorflow==2.12.1",
+    # Core Data & ML
     "numpy==1.23.5",
     "pandas==1.5.3",
-    "google-cloud-bigquery[pandas,pyarray]==3.9.0",
-    "db-dtypes==1.0.5",
     "scikit-learn==1.2.2",
+    "tensorflow==2.12.1",
+    
+    # Google BigQuery Stack (Explicitly listed)
+    "google-cloud-bigquery==3.9.0",
+    "google-cloud-bigquery-storage==2.20.0", # Added explicitly
+    "pyarrow==11.0.0",                       # Added explicitly
+    "db-dtypes==1.0.5",
+    
+    # Visualization & Notebook
     "matplotlib==3.7.1",
     "seaborn==0.12.2",
+    "facets-overview==1.1.1",
     "ipykernel",
 ]
 
