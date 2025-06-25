@@ -19,12 +19,7 @@
     "mode": "nullable",
     "description": "Model file name."
   },
-  { "name": "estimator_cn",
-    "type": "STRING",
-    "mode": "nullable",
-    "description": "Estimator class name used to build model."
-  },
-  { "name": "class_index_mapping",
+  { "name": "cid_mapping",
     "type": "STRING",
     "mode": "repeated",
     "description": "Maps training class indexes to their descriptions."

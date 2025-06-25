@@ -264,6 +264,11 @@ variable "cf_names" {
             }
             trigger_type = "http"
         }
+        "cf-i1-predict-fc" = {
+            labels = {
+            }
+            trigger_type = "http"
+        }
         "cf-pdfminions" = {
             labels = {
             }
