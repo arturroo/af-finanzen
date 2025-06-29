@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import json
 import base64
+import os
 
 
 # We must import our custom layers so Keras knows about them when loading the model
@@ -47,6 +48,7 @@ def main():
     metrics_data = {
         'metrics': [{'name': 'accuracy-score', 'numberValue': accuracy, 'format': "PERCENTAGE"}]
     }
+    os.makedirs(os.path.dirname(args.metrics_path), exist_ok=True)
     with open(args.metrics_path, 'w') as f:
         json.dump(metrics_data, f)
     
@@ -69,6 +71,7 @@ def main():
 
     # 6. Create and Save an HTML file to display the plot
     html_content = f'<html><body><img src="data:image/png;base64,{image_base64}"></body></html>'
+    os.makedirs(os.path.dirname(args.confusion_matrix_html_path), exist_ok=True)
     with open(args.confusion_matrix_html_path, 'w') as f:
         f.write(html_content)
 

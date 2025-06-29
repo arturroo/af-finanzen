@@ -1,6 +1,7 @@
 import argparse
 import pandas as pd
 from google.cloud import bigquery
+import os
 
 def _parse_args():
     """Parses command-line arguments for the data prep task."""
@@ -75,6 +76,10 @@ def main():
     train_df = df[df.split_set == 'train'].drop(columns=['split_set'])
     val_df = df[df.split_set == 'validation'].drop(columns=['split_set'])
     test_df = df[df.split_set == 'test'].drop(columns=['split_set'])
+
+    os.makedirs(os.path.dirname(args.train_data_path), exist_ok=True)
+    os.makedirs(os.path.dirname(args.val_data_path), exist_ok=True)
+    os.makedirs(os.path.dirname(args.test_data_path), exist_ok=True)
 
     train_df.to_csv(args.train_data_path, index=False)
     val_df.to_csv(args.val_data_path, index=False)

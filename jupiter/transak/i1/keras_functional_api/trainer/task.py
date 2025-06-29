@@ -3,9 +3,11 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
+import os
 
 # Import our model-building logic from the same package
 from .model import build_model, create_stateful_preprocessing_layers
+from common.utils import df2dataset
 
 def _parse_args():
     """Parses command-line arguments for the training task."""
@@ -73,6 +75,7 @@ def main():
     )
     
     # 5. Export Model for Deployment
+    os.makedirs(os.path.dirname(args.output_model_path), exist_ok=True)
     model.export(args.output_model_path)
     
 
