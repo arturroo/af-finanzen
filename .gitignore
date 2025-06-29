@@ -4,6 +4,10 @@
 # Data
 *.csv
 
+# models
+*.h5
+*.keras
+
 # Langchain
 .env
 .env.tmp

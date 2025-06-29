@@ -15,11 +15,9 @@ variable "gsheet_id" {
 variable "buckets" {
     description = "Google Storage buckets"
     default = {
-        "banks" = {
-        }
-        "gcf" = {
-        }
-
+        "banks" = {}
+        "gcf" = {}
+        "mlops" = {}
     }
 }
 
@@ -261,11 +259,6 @@ variable "cf_names" {
         "cf-i0-predict-lr" = {
             labels = {
                 # "publisher" = "gs"
-            }
-            trigger_type = "http"
-        }
-        "cf-i1-predict-fc" = {
-            labels = {
             }
             trigger_type = "http"
         }
