@@ -15,6 +15,7 @@ dependencies = [
     "jupyterlab==4.2.1",
     "ipykernel==6.29.4",
     "google-cloud-bigquery[pandas,storage]==3.24.0",
+    "google-cloud-aiplatform==1.100.0",
     "pydot==4.0.1",
     "graphviz==0.21",
 ]
@@ -29,7 +30,8 @@ pipelines = [
     "kfp==2.7.0",
     "google-cloud-pipeline-components==2.14.1"
 ]
-[tool.setuptools]
-packages = ["common", "data_prep", "evaluation", "pipeline", "trainer"]
+[tool.setuptools.packages.find]
+# [tool.setuptools]
+# packages = ["common", "data_prep", "evaluation", "pipeline", "trainer"]
 [tool.uv]
 # This section is optional but can be used for uv-specific configurations

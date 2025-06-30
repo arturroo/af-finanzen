@@ -22,7 +22,7 @@ def data_prep_op(
         image=TRAINING_CONTAINER_IMAGE_URI,
         command=[
             "python",
-            "-m", "data_prep.task",
+            "-m", "tasks.data_prep.task",
             # Pass only the arguments that data_prep/task.py actually needs
             "--project-id", project_id,
             "--train-data-path", train_data_path.path,

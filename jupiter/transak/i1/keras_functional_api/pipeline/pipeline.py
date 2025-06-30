@@ -1,21 +1,27 @@
 import os
+import sys
 from kfp import dsl,compiler
-# from google.cloud import aiplatform
+from google.cloud import aiplatform
 from pipeline.components.data_prep import data_prep_op
-from pipeline.components.training import train_model_op
+from pipeline.components.trainer import train_model_op
 from pipeline.components.evaluation import evaluate_model_op
+from pipeline.components.register import register_model_op
+
 
 # Define Your Pipeline Configuration
 PROJECT_ID = os.getenv("VERTEX_PROJECT_ID")
 REGION = os.getenv("VERTEX_REGION")
 PIPELINE_BUCKET = os.getenv("VERTEX_BUCKET") # gcs bucket for pipeline artifacts
-PIPELINE_NAME = os.getenv("PIPELINE_NAME", "transak-i1-train-pipeline-subclassing")
-if not all([PROJECT_ID, REGION, PIPELINE_BUCKET]):
+TENSORBOARD_RESOURCE_NAME = os.getenv("TENSORBOARD_RESOURCE_NAME")
+PIPELINE_NAME = os.getenv("PIPELINE_NAME", "transak-i1-pipeline-subclassing")
+SERVING_CONTAINER_IMAGE_URI = os.getenv("SERVING_CONTAINER_IMAGE_URI", "europe-docker.pkg.dev/vertex-ai-restricted/prediction/tf_opt-cpu.2-17:latest")
+if not all([PROJECT_ID, REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME]):
     raise ValueError(
-        "The following environment variables must be set: "
-        "VERTEX_PROJECT_ID, VERTEX_REGION, PIPELINE_BUCKET"
+        "The following environment variables must be set: VERTEX_PROJECT_ID, VERTEX_REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME"
     )
 PIPELINE_ROOT = f"{PIPELINE_BUCKET}/pipelines/{PIPELINE_NAME}"
+EXPERIMENT_NAME = f"{PIPELINE_NAME}-experiment"
+PIPELINE_JOB_NAME = f"{PIPELINE_NAME}-job"
 
 # Define the Pipeline using the KFP DSL
 # The @dsl.pipeline decorator defines this function as a pipeline blueprint.
@@ -23,14 +29,17 @@ PIPELINE_ROOT = f"{PIPELINE_BUCKET}/pipelines/{PIPELINE_NAME}"
     name=PIPELINE_NAME,
     description="Artur's project Transak - Iteration 1 - An end-to-end pipeline " \
     "to train the transaction classifier. Framework TensorFlow Keras Functional API and Subclassing.",
-    pipeline_root=PIPELINE_ROOT, # type: ignore GCS path for pipeline artifacts
+    pipeline_root=PIPELINE_ROOT, # type: ignore
 )
 def transaction_classifier_pipeline(
-    project_id: str,
+    project_id: str = PROJECT_ID, # type: ignore
     num_epochs: int = 100,
     learning_rate: float = 0.0002,
     batch_size: int = 16,
-    num_classes: int = 13
+    num_classes: int = 13,
+    accuracy_threshold: float = 0.88,
+    tensorboard_resource_name: str = TENSORBOARD_RESOURCE_NAME, # type: ignore
+    serving_container_image_uri: str = SERVING_CONTAINER_IMAGE_URI, # type: ignore
 ):
     """Defines the sequence of operations in the pipeline. Pipeline orchestrator will execute them."""
     # 1. Data Preparation
@@ -46,21 +55,74 @@ def transaction_classifier_pipeline(
         num_epochs=num_epochs,
         learning_rate=learning_rate,
         batch_size=batch_size,
-        num_classes=num_classes
+        num_classes=num_classes,
+        tensorboard_resource_name=tensorboard_resource_name,
+        project_id=project_id,
+        region=REGION
     )
     # This task will produce the final model artifact.
     
     # 3. Model Evaluation
     evaluate_model_task = evaluate_model_op( # type: ignore
         model=train_model_task.outputs['output_model_path'],
-        test_data=data_prep_task.outputs['test_data_path']
+        test_data=data_prep_task.outputs['test_data_path'],
+        project_id=project_id,
+        region=REGION
+    )
+
+    # 4. Model Registration
+    # with dsl.Condition(
+    #     evaluate_model_task.outputs['metrics']['accuracy'].value >= accuracy_threshold, # type: ignore
+    #     name="Register Model Condition"
+    # ):
+    register_model_task = register_model_op( # type: ignore
+        metrics=evaluate_model_task.outputs['metrics'],
+        model=train_model_task.outputs['output_model_path'],
+        project_id=project_id,
+        region=REGION,
+        model_display_name=f"{PIPELINE_NAME}-model",
+        container_image_uri=serving_container_image_uri,
+        accuracy_threshold=accuracy_threshold
     )
 
 # Compile and Run the Pipeline 
 if __name__ == "__main__":
+
+    mode = sys.argv[1] if len(sys.argv) > 1 else "submit"
+    package_path = f"{PIPELINE_NAME}.json"
+    print(f"Executing pipeline script in '{mode}' mode.")
+    
     # Compile the pipeline into a JSON (which is a form of YAML) file
     compiler.Compiler().compile(
         pipeline_func=transaction_classifier_pipeline, # type: ignore
         package_path=f"{PIPELINE_NAME}.json",
     )
+    print(f"Pipeline compiled successfully to {package_path}")
     
+    if mode == "submit":
+        aiplatform.init(project=PROJECT_ID, location=REGION, experiment=EXPERIMENT_NAME, experiment_tensorboard=TENSORBOARD_RESOURCE_NAME)
+
+        experiment =aiplatform.Experiment.get_or_create(
+            experiment_name=EXPERIMENT_NAME,
+            description="Tracking experiments for the Transak Iteration 1 Vertex AI Pipeline."
+        )
+
+        tb = aiplatform.Tensorboard(TENSORBOARD_RESOURCE_NAME) # type: ignore
+        print(f"Tensorboard resource name: {tb.resource_name}")
+        experiment.assign_backing_tensorboard(tb)
+
+        pipeline_job = aiplatform.PipelineJob(
+            display_name=PIPELINE_JOB_NAME,
+            template_path=package_path,
+            parameter_values={
+                'tensorboard_resource_name': TENSORBOARD_RESOURCE_NAME,
+                'accuracy_threshold': 0.88
+            },
+            enable_caching=False # Disable caching to ensure all new code runs
+        )
+
+        print(f"Submitting pipeline job '{PIPELINE_NAME}' to Vertex AI...")
+        #aiplatform.start_run(PIPELINE_NAME)
+        # pipeline_job.run()
+        pipeline_job.submit(experiment=experiment)
+        #aiplatform.end_run()

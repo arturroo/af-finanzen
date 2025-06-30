@@ -151,3 +151,9 @@ resource "google_bigquery_table" "view" {
     }
     depends_on = [google_bigquery_dataset.dataset]
 }
+
+resource "google_vertex_ai_tensorboard" "default" {
+  display_name = "vertex-ai-tensorboard-transak"
+  project      = var.project_id
+  region       = "europe-west6"
+}

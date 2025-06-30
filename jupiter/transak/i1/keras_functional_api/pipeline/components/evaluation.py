@@ -7,7 +7,9 @@ def evaluate_model_op(
     model: Input[Model],
     test_data: Input[Dataset],
     metrics: Output[Metrics],
-    confusion_matrix_plot: Output[HTML]
+    confusion_matrix: Output[HTML],
+    project_id: str,
+    region: str
 ):
     """
     A containerized component that runs the model evaluation task.
@@ -18,10 +20,12 @@ def evaluate_model_op(
         image=TRAINING_CONTAINER_IMAGE_URI,
         command=[
             "python",
-            "-m", "evaluation.task",
-            "--model-path", model.uri,
-            "--test-data-path", test_data.uri,
+            "-m", "tasks.evaluation.task",
+            "--model-path", model.path,
+            "--test-data-uri", test_data.uri,
             "--metrics-path", metrics.path,
-            "--confusion-matrix-path", confusion_matrix_plot.path,
+            "--confusion-matrix-path", confusion_matrix.path,
+            "--project-id", project_id,
+            "--region", region
         ]
     )
