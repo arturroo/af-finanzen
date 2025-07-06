@@ -5,13 +5,14 @@ TRAINING_CONTAINER_IMAGE_URI = "europe-west6-docker.pkg.dev/af-finanzen/af-finan
 
 @container_component
 def data_prep_op(
-    # Component Inputs
-    # The data_prep component ONLY needs the project_id to run its query.
-    project_id: str,
-    # Component Outputs
     train_data_path: Output[Dataset],
     val_data_path: Output[Dataset],
-    test_data_path: Output[Dataset]
+    test_data_path: Output[Dataset],
+    tensorboard_resource_name: str,
+    project_id: str,
+    region: str,
+    experiment_name: str = "experiment_name",
+    run_name: str = "run_name",
 ):
     """
     A containerized component that runs the data preparation task.
@@ -28,5 +29,10 @@ def data_prep_op(
             "--train-data-path", train_data_path.path,
             "--val-data-path", val_data_path.path,
             "--test-data-path", test_data_path.path,
+            "--tensorboard-resource-name", str(tensorboard_resource_name),
+            "--project-id", str(project_id),
+            "--region", str(region),
+            "--experiment-name", experiment_name,
+            "--run-name", run_name
         ]
     )

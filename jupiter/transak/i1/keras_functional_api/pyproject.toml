@@ -14,8 +14,9 @@ dependencies = [
     "seaborn==0.13.2",
     "jupyterlab==4.2.1",
     "ipykernel==6.29.4",
-    "google-cloud-bigquery[pandas,storage]==3.24.0",
-    "google-cloud-aiplatform==1.100.0",
+    "google-cloud-bigquery[pandas]==3.24.0",
+    "google-cloud-bigquery-storage==2.31.0",
+    "google-cloud-aiplatform[autologging]==1.100.0",
     "pydot==4.0.1",
     "graphviz==0.21",
 ]

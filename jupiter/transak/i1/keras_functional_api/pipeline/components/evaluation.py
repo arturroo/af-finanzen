@@ -8,8 +8,11 @@ def evaluate_model_op(
     test_data: Input[Dataset],
     metrics: Output[Metrics],
     confusion_matrix: Output[HTML],
+    tensorboard_resource_name: str,
     project_id: str,
-    region: str
+    region: str,
+    experiment_name: str = "experiment_name",
+    run_name: str = "run_name"
 ):
     """
     A containerized component that runs the model evaluation task.
@@ -25,7 +28,10 @@ def evaluate_model_op(
             "--test-data-uri", test_data.uri,
             "--metrics-path", metrics.path,
             "--confusion-matrix-path", confusion_matrix.path,
+            "--tensorboard-resource-name", str(tensorboard_resource_name),
             "--project-id", project_id,
-            "--region", region
+            "--region", region,
+            "--experiment-name", experiment_name,
+            "--run-name", run_name
         ]
     )

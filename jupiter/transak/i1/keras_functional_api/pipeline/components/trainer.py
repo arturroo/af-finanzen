@@ -15,7 +15,9 @@ def train_model_op(
     num_classes: int,
     tensorboard_resource_name: str,
     project_id: str,
-    region: str
+    region: str,
+    experiment_name: str = "experiment_name",
+    run_name: str = "run_name"
 ):
     """
     A containerized component that runs the model training task.
@@ -38,6 +40,8 @@ def train_model_op(
             "--num-classes", str(num_classes),
             "--tensorboard-resource-name", str(tensorboard_resource_name),
             "--project-id", str(project_id),
-            "--region", str(region)
+            "--region", str(region),
+            "--experiment-name", experiment_name,
+            "--run-name", run_name
         ]
     )

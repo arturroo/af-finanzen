@@ -8,11 +8,14 @@ def register_model_op(
     # --- Component Inputs ---
     metrics: Input[Metrics],
     model: Input[Model],
-    project_id: str,
-    region: str,
     model_display_name: str,
     container_image_uri: str,
-    accuracy_threshold: float = 0.88
+    accuracy_threshold: float,
+    tensorboard_resource_name: str,
+    project_id: str,
+    region: str,
+    experiment_name: str = "experiment_name",
+    run_name: str = "run_name",
 ):
     """
     A containerized component that conditionally uploads a model to the Vertex AI Model Registry if it meets the accuracy threshold.
@@ -24,10 +27,13 @@ def register_model_op(
             "-m", "tasks.register.task",
             "--metrics-path", metrics.path,
             "--model-path", model.uri,
-            "--project-id", project_id,
-            "--region", region,
             "--model-display-name", model_display_name,
             "--container-image-uri", container_image_uri,
             "--accuracy-threshold", str(accuracy_threshold),
+            "--tensorboard-resource-name", str(tensorboard_resource_name),
+            "--project-id", project_id,
+            "--region", region,
+            "--experiment-name", experiment_name,
+            "--run-name", run_name
         ]
     )
