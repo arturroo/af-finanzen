@@ -187,3 +187,7 @@ cython_debug/
 #.idea/
 jupiter/transak/i1/i1_eda.ipynb
 cloud_functions/cf-pdfminions/main.v020.py.old
+GEMINI.md 
+jupiter/transak/i1/feature_column/i1_fe_feature_column_predictions.ipynb
+jupiter/transak/i1/keras_functional_api/transak-i1-pipeline-subclassing.json
+jupiter/transak/i1/keras_functional_api/notebooks/i1_eda.ipynb

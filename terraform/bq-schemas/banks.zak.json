@@ -1,0 +1,42 @@
+[
+  {
+    "name": "buchungsnr",
+    "type": "INTEGER",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "datum",
+    "type": "DATE",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "valuta",
+    "type": "DATE",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "empfanger",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "belastung",
+    "type": "FLOAT",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "gutschrift",
+    "type": "FLOAT",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "saldo",
+    "type": "FLOAT",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "text",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  }
+]

@@ -1,0 +1,21 @@
+# Ignore the Python virtual environment
+.venv/
+
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+
+# Ignore sensitive configuration files
+.env
+
+# Ignore the entire notebooks directory
+notebooks/
+*.ipynb
+
+# Ignore build artifacts and local files
+*.json
+Readme.md
+
+# Ignore Git version control files
+.git/
+.gitignore

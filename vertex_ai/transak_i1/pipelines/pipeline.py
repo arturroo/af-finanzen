@@ -3,10 +3,10 @@ import sys
 import time
 from kfp import dsl,compiler
 from google.cloud import aiplatform
-from pipeline.components.data_prep import data_prep_op
-from pipeline.components.trainer import train_model_op
-from pipeline.components.evaluation import evaluate_model_op
-from pipeline.components.register import register_model_op
+from components.data_prep import data_prep_op
+from components.trainer import train_model_op
+from components.evaluation import evaluate_model_op
+from components.register import register_model_op
 
 
 # Define Your Pipeline Configuration

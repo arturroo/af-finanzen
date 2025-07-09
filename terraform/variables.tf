@@ -75,6 +75,11 @@ variable "internal_tables" {
             }
             
         }
+        "zak" = {
+            description = "ZAK transactions"
+            dataset_id = "banks"
+            schema = "bq-schemas/banks.zak.json"
+        }
         "i0_predictions" = {
             description = "Transak predictions. Iteration 0 of agile plan."
             dataset_id = "transak"
@@ -267,6 +272,12 @@ variable "cf_names" {
             }
             trigger_type = "http"
         }
+        "cf-pdf2bq" = {
+            labels = {
+            }
+            trigger_type = "http"
+        }
+
     }
 }
 
