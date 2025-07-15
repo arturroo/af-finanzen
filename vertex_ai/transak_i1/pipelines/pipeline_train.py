@@ -3,10 +3,10 @@ import sys
 import time
 from kfp import dsl,compiler
 from google.cloud import aiplatform
-from components.data_prep import data_prep_op
-from components.trainer import train_model_op
-from components.evaluation import evaluate_model_op
-from components.register import register_model_op
+from pipelines.components.data_prep import data_prep_op
+from pipelines.components.trainer import train_model_op
+from pipelines.components.evaluation import evaluate_model_op
+from pipelines.components.register import register_model_op
 
 
 # Define Your Pipeline Configuration
@@ -14,7 +14,7 @@ PROJECT_ID = os.getenv("VERTEX_PROJECT_ID")
 REGION = os.getenv("VERTEX_REGION")
 PIPELINE_BUCKET = os.getenv("VERTEX_BUCKET") # gcs bucket for pipeline artifacts
 TENSORBOARD_RESOURCE_NAME = os.getenv("TENSORBOARD_RESOURCE_NAME")
-PIPELINE_NAME = os.getenv("PIPELINE_NAME", "transak-i1-pipeline-subclassing")
+PIPELINE_NAME = os.getenv("PIPELINE_NAME", "transak-i1-train")
 SERVING_CONTAINER_IMAGE_URI = os.getenv("SERVING_CONTAINER_IMAGE_URI", "europe-docker.pkg.dev/vertex-ai-restricted/prediction/tf_opt-cpu.2-17:latest")
 if not all([PROJECT_ID, REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME]):
     raise ValueError(

@@ -1,6 +1,6 @@
 from kfp.dsl import container_component, ContainerSpec, Input, Output, Model, Dataset, Metrics, HTML
 
-TRAINING_CONTAINER_IMAGE_URI = "europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/i1-transaction-trainer:latest"
+TRAINING_CONTAINER_IMAGE_URI = "europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train:latest"
 
 @container_component
 def evaluate_model_op(
