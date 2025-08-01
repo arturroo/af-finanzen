@@ -1,6 +1,6 @@
 from kfp.dsl import container_component, ContainerSpec, Input, Output, Model, Dataset, Metrics, HTML
 
-TRAINING_CONTAINER_IMAGE_URI = "europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train:latest"
+TRAIN_PREDICT_CONTAINER_IMAGE_URI = "europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train-predict:latest"
 
 @container_component
 def evaluate_model_op(
@@ -20,7 +20,7 @@ def evaluate_model_op(
     metrics and a confusion matrix visualization.
     """
     return ContainerSpec(
-        image=TRAINING_CONTAINER_IMAGE_URI,
+        image=TRAIN_PREDICT_CONTAINER_IMAGE_URI,
         command=[
             "python",
             "-m", "src.components.evaluation.task",

@@ -54,7 +54,12 @@ variable "datasets" {
         "monatsabschluss" = {
             description = "Abrechnungen von Monaten"
             max_time_travel_hours = 168
-        }    }
+        }
+        "vp_transak_i1_train" = {
+            description = "Vertex AI Pipeline Transak Iteration 1 training data"
+            max_time_travel_hours = 168
+        }
+    }
 }
 
 variable "internal_tables" {

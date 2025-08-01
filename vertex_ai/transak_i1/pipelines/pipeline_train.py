@@ -4,9 +4,14 @@ import time
 from kfp import dsl,compiler
 from google.cloud import aiplatform
 from pipelines.components.data_prep import data_prep_op
+from pipelines.components.data_splits import data_splits_op
 from pipelines.components.trainer import train_model_op
 from pipelines.components.evaluation import evaluate_model_op
 from pipelines.components.register import register_model_op
+from pipelines.components.bq_config_generator import bq_config_generator_op
+from google_cloud_pipeline_components.v1.bigquery import BigqueryQueryJobOp
+from src.common.base_sql import raw_data_query
+from google.cloud import bigquery
 
 
 # Define Your Pipeline Configuration
@@ -24,6 +29,9 @@ PIPELINE_ROOT = f"{PIPELINE_BUCKET}/pipelines/{PIPELINE_NAME}"
 EXPERIMENT_NAME = f"{PIPELINE_NAME}-experiment"
 PIPELINE_JOB_NAME = f"{PIPELINE_NAME}-job"
 
+
+print(f"projec_id: {PROJECT_ID}")
+
 # Define the Pipeline using the KFP DSL
 # The @dsl.pipeline decorator defines this function as a pipeline blueprint.
 @dsl.pipeline(
@@ -32,8 +40,8 @@ PIPELINE_JOB_NAME = f"{PIPELINE_NAME}-job"
     "to train the transaction classifier. Framework TensorFlow Keras Functional API and Subclassing.",
     pipeline_root=PIPELINE_ROOT, # type: ignore
 )
-def transaction_classifier_pipeline(
-    project_id: str = PROJECT_ID, # type: ignore
+def transak_i1_pipeline_train(
+    project_id: str,
     num_epochs: int = 100,
     learning_rate: float = 0.0002,
     batch_size: int = 16,
@@ -45,20 +53,39 @@ def transaction_classifier_pipeline(
     run_name: str = PIPELINE_JOB_NAME, # type: ignore
 ):
     """Defines the sequence of operations in the pipeline. Pipeline orchestrator will execute them."""
-    # 1. Data Preparation
-    data_prep_task = data_prep_op( # type: ignore
+    # 1. Generate BigQuery job configuration
+    bq_config_generator = bq_config_generator_op(
+        project_id=project_id,
+        pipeline_job_name=dsl.PIPELINE_JOB_NAME_PLACEHOLDER,
+        dataset_id="vp_transak_i1_train",
+        table_name_prefix="golden_data"
+    )
+    bq_config_generator.set_display_name("Generate BQ Config")
+
+    # 2. Get Golden Data
+    golden_data = BigqueryQueryJobOp(
+        project=project_id,
+        location=REGION,
+        query=raw_data_query(),
+        job_configuration_query=bq_config_generator.output
+    )
+    golden_data.set_display_name("Golden Data")
+
+    # 2. Train, val, test split
+    data_splits = data_splits_op( # type: ignore
+        golden_data_table=golden_data.outputs['destination_table'],
         tensorboard_resource_name=tensorboard_resource_name,
         project_id=project_id,
         region=REGION,
         experiment_name=experiment_name,
         run_name=run_name,
     )
-    # This task now has outputs, like `data_prep_task.outputs['train_data_path']`
-
-    # 2. Model Training
-    train_model_task = train_model_op( # type: ignore
-        train_data_path=data_prep_task.outputs['train_data_path'],
-        val_data_path=data_prep_task.outputs['val_data_path'],
+    data_splits.set_display_name("Data Splits")
+    
+    # 3. Model Training
+    train_model = train_model_op( # type: ignore
+        train_data=data_splits.outputs['train_data'],
+        val_data=data_splits.outputs['val_data'],
         num_epochs=num_epochs,
         learning_rate=learning_rate,
         batch_size=batch_size,
@@ -69,72 +96,74 @@ def transaction_classifier_pipeline(
         experiment_name=experiment_name,
         run_name=run_name
     )
-    # This task will produce the final model artifact.
+    train_model.set_display_name("Model Training")
     
-    # 3. Model Evaluation
-    evaluate_model_task = evaluate_model_op( # type: ignore
-        model=train_model_task.outputs['output_model_path'],
-        test_data=data_prep_task.outputs['test_data_path'],
-        tensorboard_resource_name=tensorboard_resource_name,
-        project_id=project_id,
-        region=REGION,
-        experiment_name=experiment_name,
-        run_name=run_name
-    )
-
-    # 4. Model Registration
-    # with dsl.Condition(
-    #     evaluate_model_task.outputs['metrics']['accuracy'].value >= accuracy_threshold, # type: ignore
-    #     name="Register Model Condition"
-    # ):
-    register_model_task = register_model_op( # type: ignore
-        metrics=evaluate_model_task.outputs['metrics'],
-        model=train_model_task.outputs['output_model_path'],
-        model_display_name=f"{PIPELINE_NAME}-model",
-        container_image_uri=serving_container_image_uri,
-        accuracy_threshold=accuracy_threshold,
-        tensorboard_resource_name=tensorboard_resource_name,
-        project_id=project_id,
-        region=REGION,
-        experiment_name=experiment_name,
-        run_name=run_name
-    )
+    # 
+    # # 3. Model Evaluation
+    # evaluate_model_task = evaluate_model_op( # type: ignore
+    #     model=train_model.outputs['output_model_path'],
+    #     test_data=data_splits.outputs['test_data'],
+    #     tensorboard_resource_name=tensorboard_resource_name,
+    #     project_id=project_id,
+    #     region=REGION,
+    #     experiment_name=experiment_name,
+    #     run_name=run_name
+    # )
+    # evaluate_model_task.set_display_name("Model Evaluation") 
+    # # 4. Model Registration
+    # # with dsl.Condition(
+    # #     evaluate_model_task.outputs['metrics']['accuracy'].value >= accuracy_threshold, # type: ignore
+    # #     name="Register Model Condition"
+    # # ):
+    # register_model_task = register_model_op( # type: ignore
+    #     metrics=evaluate_model_task.outputs['metrics'],
+    #     model=train_model.outputs['output_model_path'],
+    #     model_display_name=f"{PIPELINE_NAME}-model",
+    #     container_image_uri=serving_container_image_uri,
+    #     accuracy_threshold=accuracy_threshold,
+    #     tensorboard_resource_name=tensorboard_resource_name,
+    #     project_id=project_id,
+    #     region=REGION,
+    #     experiment_name=experiment_name,
+    #     run_name=run_name
+    # )
 
     
 
-# Compile and Run the Pipeline 
+# Compile and Run the Pipeline
 if __name__ == "__main__":
-
     mode = sys.argv[1] if len(sys.argv) > 1 else "submit"
     package_path = f"{PIPELINE_NAME}.json"
     experiment_name = EXPERIMENT_NAME
-    # run_name = f"{experiment_name}-{int(time.time())}"
-    # run_name = f"run-{int(time.time())}"
     local_time = time.strftime("%Y%m%d%H%M%S", time.localtime())
     run_name = f"run-{local_time}"
     print(f"Executing pipeline script in '{mode}' mode.")
-    
+
     # Compile the pipeline into a JSON (which is a form of YAML) file
     compiler.Compiler().compile(
-        pipeline_func=transaction_classifier_pipeline, # type: ignore
+        pipeline_func=transak_i1_pipeline_train,  # type: ignore
         package_path=f"{PIPELINE_NAME}.json",
+        pipeline_parameters={
+            "project_id": PROJECT_ID,
+        }
     )
     print(f"Pipeline compiled successfully to {package_path}")
-    
+
     if mode == "submit":
-        aiplatform.init(project=PROJECT_ID, 
-                        location=REGION, 
-                        experiment=EXPERIMENT_NAME, 
-                        experiment_tensorboard=TENSORBOARD_RESOURCE_NAME,
-                        )
+        aiplatform.init(
+            project=PROJECT_ID,
+            location=REGION,
+            experiment=EXPERIMENT_NAME,
+            experiment_tensorboard=TENSORBOARD_RESOURCE_NAME,
+        )
         aiplatform.autolog()
-        
-        experiment =aiplatform.Experiment.get_or_create(
+
+        experiment = aiplatform.Experiment.get_or_create(
             experiment_name=EXPERIMENT_NAME,
-            description="Tracking experiments for the Transak Iteration 1 Vertex AI Pipeline."
+            description="Tracking experiments for the Transak Iteration 1 Vertex AI Pipeline.",
         )
 
-        tb = aiplatform.Tensorboard(TENSORBOARD_RESOURCE_NAME) # type: ignore
+        tb = aiplatform.Tensorboard(TENSORBOARD_RESOURCE_NAME)  # type: ignore
         experiment.assign_backing_tensorboard(tb)
         print(f"Tensorboard resource name: {tb.resource_name}")
 
@@ -146,16 +175,15 @@ if __name__ == "__main__":
                 display_name=PIPELINE_JOB_NAME,
                 template_path=package_path,
                 parameter_values={
-                    'tensorboard_resource_name': TENSORBOARD_RESOURCE_NAME,
-                    'accuracy_threshold': 0.88,
-                    'experiment_name': EXPERIMENT_NAME,
-                    'run_name': run_name,
+                    "tensorboard_resource_name": TENSORBOARD_RESOURCE_NAME,
+                    "accuracy_threshold": 0.88,
+                    "experiment_name": EXPERIMENT_NAME,
+                    "run_name": run_name,
                 },
-                enable_caching=False # Disable caching to ensure all new code runs
+                # enable_caching=False  # Disable caching to ensure all new code runs
+                enable_caching=True  # Enable caching to skip already executed steps
             )
 
             print(f"Submitting pipeline job '{PIPELINE_NAME}' to Vertex AI...")
-            #aiplatform.start_run(PIPELINE_NAME)
-            # pipeline_job.run()
             pipeline_job.submit(experiment=experiment)
-            #aiplatform.end_run()
+            print(f"Pipeline job '{PIPELINE_NAME}' submitted successfully.")

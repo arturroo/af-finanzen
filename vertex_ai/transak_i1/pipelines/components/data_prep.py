@@ -1,7 +1,7 @@
 from kfp.dsl import container_component, ContainerSpec, Input, Output, Model, Dataset
 
 # We use the exact same container image as our training component.
-TRAINING_CONTAINER_IMAGE_URI = "europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train:latest"
+TRAIN_PREDICT_CONTAINER_IMAGE_URI = "europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train-predict:latest"
 
 @container_component
 def data_prep_op(
@@ -20,7 +20,7 @@ def data_prep_op(
     to the data_prep/task.py script inside it.
     """
     return ContainerSpec(
-        image=TRAINING_CONTAINER_IMAGE_URI,
+        image=TRAIN_PREDICT_CONTAINER_IMAGE_URI,
         command=[
             "python",
             "-m", "src.components.data_prep.task",

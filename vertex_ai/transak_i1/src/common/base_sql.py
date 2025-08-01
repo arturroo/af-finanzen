@@ -23,6 +23,6 @@ def raw_data_query():
             END AS i1_true_label
         FROM `af-finanzen.monatsabschluss.revolut_abrechnung`
         WHERE
-            type NOT IN ("FEE", "ATM")
+            type NOT IN ('FEE', 'ATM')
     """
     return raw_query

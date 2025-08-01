@@ -1,7 +1,7 @@
 from kfp.dsl import container_component, ContainerSpec, Input, Output, Model, Metrics
 
 # We use the exact same container image as our other components.
-TRAINING_CONTAINER_IMAGE_URI = "europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train:latest"
+TRAIN_PREDICT_CONTAINER_IMAGE_URI = "europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train-predict:latest"
 
 @container_component
 def register_model_op(
@@ -21,7 +21,7 @@ def register_model_op(
     A containerized component that conditionally uploads a model to the Vertex AI Model Registry if it meets the accuracy threshold.
     """
     return ContainerSpec(
-        image=TRAINING_CONTAINER_IMAGE_URI,
+        image=TRAIN_PREDICT_CONTAINER_IMAGE_URI,
         command=[
             "python",
             "-m", "src.components.register.task",

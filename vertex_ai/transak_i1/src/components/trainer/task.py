@@ -13,8 +13,8 @@ from src.common.utils import df2dataset
 def _parse_args():
     """Parses command-line arguments for the training task."""
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train-data-path', required=True, type=str, help='GCS path to the training CSV file.')
-    parser.add_argument('--val-data-path', required=True, type=str, help='GCS path to the validation CSV file.')
+    parser.add_argument('--train-data-uri', required=True, type=str, help='GCS path to the training CSV file.')
+    parser.add_argument('--val-data-uri', required=True, type=str, help='GCS path to the validation CSV file.')
     parser.add_argument('--output-model-path', required=True, type=str, help='GCS path to save the exported model.')
     parser.add_argument('--num-epochs', required=True, type=int, help='Number of training epochs.')
     parser.add_argument('--learning-rate', required=True, type=float, help='Learning rate for the optimizer.')
@@ -40,8 +40,15 @@ def main():
     aiplatform.autolog()
     with aiplatform.start_run(run=args.run_name, resume=True) as experiment_run:
         # 1. Load Data
-        train_df = pd.read_csv(args.train_data_path)
-        val_df = pd.read_csv(args.val_data_path)
+        train_df = pd.read_csv(args.train_data_uri)
+        val_df = pd.read_csv(args.val_data_uri)
+
+        # Drop the 'tid' column as it's not a feature for the model
+        if 'tid' in train_df.columns:
+            train_df = train_df.drop(columns=['tid'])
+        if 'tid' in val_df.columns:
+            val_df = val_df.drop(columns=['tid'])
+
         train_ds = df2dataset(train_df, batch_size=args.batch_size)
         val_ds = df2dataset(val_df, shuffle=False, batch_size=args.batch_size)
 

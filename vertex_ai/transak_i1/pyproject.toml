@@ -29,7 +29,7 @@ dev = [
 ]
 pipelines = [
     "kfp==2.7.0",
-    "google-cloud-pipeline-components==2.14.1"
+    "google-cloud-pipeline-components==2.20.1"
 ]
 [tool.setuptools.packages.find]
 # [tool.setuptools]

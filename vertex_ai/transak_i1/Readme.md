@@ -76,7 +76,7 @@ This project is designed to be run as a Vertex AI Pipeline.
 2.  **Build the Container:**
     * From the project root, run the following command to build the custom container and push it to Artifact Registry:
         ```bash
-        gcloud builds submit --region="europe-west1" --tag="europe-west6-docker.pkg.dev/your-project/your-repo/your-image:latest" .
+        gcloud builds submit --region="europe-west1" --tag="europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train-predict:latest" .
         ```
 
 3.  **Run the Pipeline:**

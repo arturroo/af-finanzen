@@ -1,0 +1,35 @@
+[
+  {
+    "name": "delete-old-images",
+    "action": { "type": "Delete"},
+    "condition": {
+      "olderThan": "30d",
+      "tagState": "ANY",
+      "packageNamePrefixes": [
+        "i1-transaction-trainer",
+        "transak-i1-train-predict"
+      ]
+    }
+  },
+  {
+    "name": "keep-recent-trainer-images",
+    "action": { "type": "Keep"},
+    "mostRecentVersions": {
+      "keepCount": 5,
+      "packageNamePrefixes": [
+        "i1-transaction-trainer"
+      ]
+    }
+  },
+  {
+    "name": "keep-recent-train-predict-images",
+    "action": { "type": "Keep"},
+    "mostRecentVersions": {
+      "keepCount": 10,
+      "packageNamePrefixes": [
+        "transak-i1-train-predict"
+      ]
+    }
+  }
+
+]
