@@ -1,42 +1,123 @@
-from kfp.dsl import container_component, ContainerSpec, Input, Output, Dataset
+import json
+import os
+import pandas as pd
+import numpy as np
+from kfp.v2.dsl import component, Input, Output, Dataset, Artifact
+from google.cloud import bigquery
 from google_cloud_pipeline_components.types.artifact_types import BQTable
 
-# We use the exact same container image as our training component.
-TRAIN_PREDICT_CONTAINER_IMAGE_URI = "europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train-predict:latest"
-
-@container_component
+@component(
+    packages_to_install=["pandas", "google-cloud-bigquery", "db-dtypes", "google-cloud-pipeline-components"],
+)
 def data_splits_op(
     golden_data_table: Input[BQTable],
     train_data: Output[Dataset],
     val_data: Output[Dataset],
     test_data: Output[Dataset],
-    tensorboard_resource_name: str,
     project_id: str,
     region: str,
-    experiment_name: str = "experiment_name",
-    run_name: str = "run_name",
+    target_column: str,
 ):
     """
-    A containerized component that runs the create training splits task.
-    It launches our pre-built custom container and passes parameters
-    to the create_training_splits/task.py script inside it.
+    A component that reads golden data, splits it into train, validation, and test sets,
+    and calculates statistics for each split, attaching them as metadata.
     """
-    return ContainerSpec(
-        image=TRAIN_PREDICT_CONTAINER_IMAGE_URI,
-        command=[
-            "python",
-            "-m", "src.components.data_splits.task",
-            # Pass the FQTN components instead of the URI
-            "--bq-project-id", golden_data_table.metadata['projectId'],
-            "--bq-dataset-id", golden_data_table.metadata['datasetId'],
-            "--bq-table-id", golden_data_table.metadata['tableId'],
-            "--train-data-path", train_data.path,
-            "--val-data-path", val_data.path,
-            "--test-data-path", test_data.path,
-            "--tensorboard-resource-name", str(tensorboard_resource_name),
-            "--project-id", project_id,
-            "--region", str(region),
-            "--experiment-name", experiment_name,
-            "--run-name", run_name
-        ]
-    )
+    def _calculate_dataframe_statistics(df: pd.DataFrame, target_column: str) -> dict:
+        """Calculates various statistics for a given DataFrame."""
+        stats = {}
+
+        # 1. Number of Samples/Rows
+        stats['num_rows'] = len(df)
+
+        # 2. Number of Features/Columns (excluding target)
+        stats['num_columns'] = len(df.columns) - 1 # Exclude target column
+
+        # 3. Class Distribution (for classification)
+        if target_column in df.columns:
+            class_counts = df[target_column].value_counts()
+            stats['class_distribution'] = class_counts.to_dict()
+            stats['class_distribution_percentage'] = (class_counts / len(df) * 100).to_dict()
+        else:
+            stats['class_distribution'] = 'Target column not found'
+
+        # Identify numerical and categorical columns
+        numerical_cols = df.select_dtypes(include=np.number).columns.tolist()
+        if target_column in numerical_cols:
+            numerical_cols.remove(target_column) # Exclude target if it's numerical
+
+        categorical_cols = df.select_dtypes(include='object').columns.tolist()
+
+        # 4. Summary Statistics for Numerical Features
+        numerical_stats = {}
+        for col in numerical_cols:
+            col_stats = {
+                'mean': df[col].mean(),
+                'median': df[col].median(),
+                'std': df[col].std(),
+                'min': df[col].min(),
+                'max': df[col].max(),
+                '25th_percentile': df[col].quantile(0.25),
+                '50th_percentile': df[col].quantile(0.50),
+                '75th_percentile': df[col].quantile(0.75),
+            }
+            numerical_stats[col] = {k: (None if pd.isna(v) else v) for k, v in col_stats.items()} # Replace NaN with None
+        stats['numerical_features_stats'] = numerical_stats
+
+        # 5. Missing Value Counts/Percentages
+        missing_values = df.isnull().sum()
+        missing_percentage = (df.isnull().sum() / len(df)) * 100
+        missing_stats = {}
+        for col in df.columns:
+            if missing_values[col] > 0:
+                missing_stats[col] = {
+                    'count': int(missing_values[col]),
+                    'percentage': float(missing_percentage[col])
+                }
+        stats['missing_values'] = missing_stats
+
+        # 6. Cardinality for Categorical Features
+        categorical_cardinality = {}
+        for col in categorical_cols:
+            categorical_cardinality[col] = int(df[col].nunique())
+        stats['categorical_features_cardinality'] = categorical_cardinality
+
+        return stats
+
+    # Construct the Fully Qualified Table Name (FQTN)
+    fqtn = f"{golden_data_table.metadata['projectId']}.{golden_data_table.metadata['datasetId']}.{golden_data_table.metadata['tableId']}"
+
+    query = f"""
+    SELECT
+      *
+      , DENSE_RANK() OVER(ORDER BY i1_true_label) - 1 AS i1_true_label_id
+      , CASE
+          WHEN ABS(MOD(tid, 10)) <= 7 THEN 'train'
+          WHEN ABS(MOD(tid, 10)) = 8 THEN 'validation'
+          WHEN ABS(MOD(tid, 10)) = 9 THEN 'test'
+          ELSE "unknown"
+        END AS split_set
+    FROM `{fqtn}`
+    """
+    bq_client = bigquery.Client(project=project_id)
+    print(f"Running query: {query}")
+    df = bq_client.query(query).to_dataframe()
+
+    train_df = df[df.split_set == 'train'].drop(columns=['split_set'])
+    val_df = df[df.split_set == 'validation'].drop(columns=['split_set'])
+    test_df = df[df.split_set == 'test'].drop(columns=['split_set'])
+
+    # Save splits data to GCS paths
+    print(f"Saving splits data to {train_data.path}")
+    train_df.to_csv(train_data.path, index=False)
+    val_df.to_csv(val_data.path, index=False)
+    test_df.to_csv(test_data.path, index=False)
+
+    # Calculate and attach statistics as metadata
+    train_data.metadata = _calculate_dataframe_statistics(train_df, target_column)
+    val_data.metadata = _calculate_dataframe_statistics(val_df, target_column)
+    test_data.metadata = _calculate_dataframe_statistics(test_df, target_column)
+
+    print("Train Data Statistics:", train_data.metadata)
+    print("Validation Data Statistics:", val_data.metadata)
+    print("Test Data Statistics:", test_data.metadata)
+

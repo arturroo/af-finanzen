@@ -3,15 +3,20 @@ import sys
 import time
 from kfp import dsl,compiler
 from google.cloud import aiplatform
-from pipelines.components.data_prep import data_prep_op
+# from pipelines.components.data_prep import data_prep_op
 from pipelines.components.data_splits import data_splits_op
 from pipelines.components.trainer import train_model_op
 from pipelines.components.evaluation import evaluate_model_op
 from pipelines.components.register import register_model_op
 from pipelines.components.bq_config_generator import bq_config_generator_op
+# from pipelines.components.utils import get_artifact_uri_op
+from pipelines.components.batch_predict import batch_predict_op
+from pipelines.components.custom_batch_predict import custom_batch_predict_op
 from google_cloud_pipeline_components.v1.bigquery import BigqueryQueryJobOp
+from google_cloud_pipeline_components.v1.model_evaluation import ModelEvaluationClassificationOp
+# from google_cloud_pipeline_components.v1.batch_predict_job import ModelBatchPredictOp
 from src.common.base_sql import raw_data_query
-from google.cloud import bigquery
+# from google.cloud import bigquery
 
 
 # Define Your Pipeline Configuration
@@ -47,6 +52,7 @@ def transak_i1_pipeline_train(
     batch_size: int = 16,
     num_classes: int = 13,
     accuracy_threshold: float = 0.88,
+    target_column: str = "i1_true_label_id",
     tensorboard_resource_name: str = TENSORBOARD_RESOURCE_NAME, # type: ignore
     serving_container_image_uri: str = SERVING_CONTAINER_IMAGE_URI, # type: ignore
     experiment_name: str = EXPERIMENT_NAME, # type: ignore
@@ -69,18 +75,19 @@ def transak_i1_pipeline_train(
         query=raw_data_query(),
         job_configuration_query=bq_config_generator.output
     )
-    golden_data.set_display_name("Golden Data")
+    golden_data.set_display_name("Create Golden Data")
 
     # 2. Train, val, test split
     data_splits = data_splits_op( # type: ignore
         golden_data_table=golden_data.outputs['destination_table'],
-        tensorboard_resource_name=tensorboard_resource_name,
         project_id=project_id,
         region=REGION,
-        experiment_name=experiment_name,
-        run_name=run_name,
+        target_column=target_column,
+        # train_stats_output=dsl.Artifact(), # No longer needed as stats are metadata
+        # val_stats_output=dsl.Artifact(),   # No longer needed as stats are metadata
+        # test_stats_output=dsl.Artifact(),  # No longer needed as stats are metadata
     )
-    data_splits.set_display_name("Data Splits")
+    data_splits.set_display_name("Create Data Splits")
     
     # 3. Model Training
     train_model = train_model_op( # type: ignore
@@ -94,22 +101,43 @@ def transak_i1_pipeline_train(
         project_id=project_id,
         region=REGION,
         experiment_name=experiment_name,
-        run_name=run_name
+        # run_name=run_name,
+        model_display_name=f"{PIPELINE_NAME}-model",
+        serving_container_image_uri=serving_container_image_uri
     )
-    train_model.set_display_name("Model Training")
-    
-    # 
-    # # 3. Model Evaluation
-    # evaluate_model_task = evaluate_model_op( # type: ignore
-    #     model=train_model.outputs['output_model_path'],
+    train_model.set_display_name("Train Model")
+
+    # 3. Batch Prediction for Evaluation (Custom Component)
+    custom_batch_predict_for_evaluation = custom_batch_predict_op(
+        project=project_id,
+        location=REGION,
+        vertex_model=train_model.outputs['vertex_model'],
+        test_data=data_splits.outputs['test_data'],
+    )
+    custom_batch_predict_for_evaluation.set_display_name("Custom Batch Predict")
+
+    # # 3. Batch Prediction for Evaluation (Original)
+    # batch_predict_for_evaluation = batch_predict_op(
+    #     project=project_id,
+    #     location=REGION,
+    #     vertex_model=train_model.outputs['vertex_model'],
     #     test_data=data_splits.outputs['test_data'],
-    #     tensorboard_resource_name=tensorboard_resource_name,
-    #     project_id=project_id,
-    #     region=REGION,
     #     experiment_name=experiment_name,
-    #     run_name=run_name
     # )
-    # evaluate_model_task.set_display_name("Model Evaluation") 
+    # batch_predict_for_evaluation.set_display_name("Batch Predict for Evaluation")
+
+    # 4. Model Evaluation
+    # evaluate_model_task = ModelEvaluationClassificationOp(
+    #     target_field_name='i1_true_label_id', # The column with true labels in test_data
+    #     model=train_model.outputs['vertex_model'], # This is now a VertexModel
+    #     location=REGION,
+    #     predictions_format='jsonl', # Assuming model outputs JSONL predictions
+    #     ground_truth_format='csv',
+    #     ground_truth_gcs_source=get_test_data_uri.outputs['output_uri'],
+    #     predictions_gcs_source=batch_predict_for_evaluation.outputs['gcs_output_directory'],
+    #     # class_labels=... (can be added if we get the actual string labels)
+    # )
+    # evaluate_model_task.set_display_name("Evaluate Model")
     # # 4. Model Registration
     # # with dsl.Condition(
     # #     evaluate_model_task.outputs['metrics']['accuracy'].value >= accuracy_threshold, # type: ignore
@@ -145,6 +173,7 @@ if __name__ == "__main__":
         package_path=f"{PIPELINE_NAME}.json",
         pipeline_parameters={
             "project_id": PROJECT_ID,
+            "target_column": "i1_true_label_id",
         }
     )
     print(f"Pipeline compiled successfully to {package_path}")
@@ -179,6 +208,7 @@ if __name__ == "__main__":
                     "accuracy_threshold": 0.88,
                     "experiment_name": EXPERIMENT_NAME,
                     "run_name": run_name,
+                    "target_column": "i1_true_label_id",
                 },
                 # enable_caching=False  # Disable caching to ensure all new code runs
                 enable_caching=True  # Enable caching to skip already executed steps
