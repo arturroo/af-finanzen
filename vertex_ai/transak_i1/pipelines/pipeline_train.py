@@ -102,78 +102,59 @@ def transak_i1_pipeline_train(
         project_id=project_id,
         region=REGION,
         experiment_name=experiment_name,
-        # run_name=run_name,
-        model_display_name=f"{PIPELINE_NAME}-model",
-        serving_container_image_uri=serving_container_image_uri
     )
     train_model.set_display_name("Train Model")
+    train_model.set_caching_options(False)
 
-    # 3. Batch Prediction for Evaluation (Custom Component)
+    # 4. Model Registration
+    register_model = register_model_op( # type: ignore
+        model=train_model.outputs['output_model'],
+        model_display_name=f"{PIPELINE_NAME}-model",
+        serving_container_image_uri=serving_container_image_uri,
+        project_id=project_id,
+        region=REGION,
+        experiment_name=experiment_name,
+    )
+    register_model.set_display_name("Register Model")
+
+    # 5. Batch Prediction for Evaluation (Custom Component)
     custom_batch_predict_for_evaluation = custom_batch_predict_op(
         project=project_id,
         location=REGION,
-        vertex_model=train_model.outputs['vertex_model'],
+        vertex_model=register_model.outputs['vertex_model'],
         test_data=data_splits.outputs['test_data'],
         experiment_name=experiment_name,
     )
     custom_batch_predict_for_evaluation.set_display_name("Custom Batch Predict")
 
-    # # 3. Batch Prediction for Evaluation (Original)
-    # batch_predict_for_evaluation = batch_predict_op(
-    #     project=project_id,
+    # # 6. Model Evaluation
+    # evaluate_model_task = ModelEvaluationClassificationOp(
+    #     target_field_name='i1_true_label_id', # The column with true labels in test_data
+    #     model=register_model.outputs['vertex_model'], # This is now a VertexModel
     #     location=REGION,
-    #     vertex_model=train_model.outputs['vertex_model'],
-    #     test_data=data_splits.outputs['test_data'],
-    #     experiment_name=experiment_name,
+    #     predictions_format='jsonl', # Assuming model outputs JSONL predictions
+    #     ground_truth_format='csv',
+    #     # ground_truth_gcs_source=data_splits.outputs['test_data'].uri,
+    #     ground_truth_gcs_source=['mockup'],
+    #     predictions_gcs_source=custom_batch_predict_for_evaluation.outputs['predictions'],
+    #     #class_labels=data_splits.outputs['test_data'].metadata['class_distribution'].keys(), # Use human-readable labels
     # )
-    # batch_predict_for_evaluation.set_display_name("Batch Predict for Evaluation")
+    # evaluate_model_task.set_display_name("Evaluate Model")
 
-    # 4. Model Evaluation
-    evaluate_model_task = ModelEvaluationClassificationOp(
-        target_field_name='i1_true_label_id', # The column with true labels in test_data
-        model=train_model.outputs['vertex_model'], # This is now a VertexModel
-        location=REGION,
-        predictions_format='jsonl', # Assuming model outputs JSONL predictions
-        ground_truth_format='csv',
-        # ground_truth_gcs_source=data_splits.outputs['test_data'].uri,
-        ground_truth_gcs_source=['mockup'],
-        predictions_gcs_source=custom_batch_predict_for_evaluation.outputs['predictions'],
-        #class_labels=data_splits.outputs['test_data'].metadata['class_distribution'].keys(), # Use human-readable labels
-    )
-    evaluate_model_task.set_display_name("Evaluate Model")
-
-    # 5. Bless Model (Conditional Step)
-    with dsl.Condition(
-        #evaluate_model_task.outputs['metrics']['accuracy'].value >= accuracy_threshold, # type: ignore
-        0.89 >= accuracy_threshold, # type: ignore
-        name="Bless Model Condition"
-    ):
-        bless_model = bless_model_op(
-            vertex_model=train_model.outputs['vertex_model'],
-            metrics=evaluate_model_task.outputs['evaluation_metrics'],
-            accuracy_threshold=accuracy_threshold,
-            project=project_id,
-            location=REGION,
-        )
-        bless_model.set_display_name("Bless Model")
-
-    # # 4. Model Registration
-    # # with dsl.Condition(
-    # #     evaluate_model_task.outputs['metrics']['accuracy'].value >= accuracy_threshold, # type: ignore
-    # #     name="Register Model Condition"
-    # # ):
-    # register_model_task = register_model_op( # type: ignore
-    #     metrics=evaluate_model_task.outputs['metrics'],
-    #     model=train_model.outputs['output_model_path'],
-    #     model_display_name=f"{PIPELINE_NAME}-model",
-    #     container_image_uri=serving_container_image_uri,
-    #     accuracy_threshold=accuracy_threshold,
-    #     tensorboard_resource_name=tensorboard_resource_name,
-    #     project_id=project_id,
-    #     region=REGION,
-    #     experiment_name=experiment_name,
-    #     run_name=run_name
-    # )
+    # # 7. Bless Model (Conditional Step)
+    # with dsl.Condition(
+    #     #evaluate_model_task.outputs['metrics']['accuracy'].value >= accuracy_threshold, # type: ignore
+    #     0.89 >= accuracy_threshold, # type: ignore
+    #     name="Bless Model Condition"
+    # ):
+    #     bless_model = bless_model_op(
+    #         vertex_model=register_model.outputs['vertex_model'],
+    #         metrics=evaluate_model_task.outputs['evaluation_metrics'],
+    #         accuracy_threshold=accuracy_threshold,
+    #         project=project_id,
+    #         location=REGION,
+    #     )
+    #     bless_model.set_display_name("Bless Model")
 
     
 
@@ -229,8 +210,8 @@ if __name__ == "__main__":
                     "run_name": run_name,
                     "target_column": "i1_true_label_id",
                 },
-                # enable_caching=False  # Disable caching to ensure all new code runs
-                enable_caching=True  # Enable caching to skip already executed steps
+                enable_caching=False  # Disable caching to ensure all new code runs
+                #enable_caching=True  # Enable caching to skip already executed steps
             )
 
             print(f"Submitting pipeline job '{PIPELINE_NAME}' to Vertex AI...")

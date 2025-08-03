@@ -50,17 +50,40 @@ The final model shows a significant improvement over previous baselines, demonst
 The project is organized into distinct Python packages to ensure a clean separation of concerns, a best practice for production ML systems.
 
 ```
-├── common/             # Shared utility functions (e.g., df2dataset).
-├── tasks/              # Container entrypoint scripts for each pipeline step.
-│   ├── data_prep/      # Loads the data and outputs three data sets as artifacts.
-│   ├── evaluation/     # Outputs model evaluation. With dirty hack to load Keras model.
-│   ├── register/       # Conditional logic to upload the model to Vertex AI Model Registry.
-│   └── trainer/        # Core model definition and custom Keras layers.
-├── pipeline/           # KFP component launchers and the main pipeline definition.
-│   └── components/
-├── .gcloudignore       # Instructs gcloud CLI to ignore unnecessary files for builds.
-├── Dockerfile          # Instructions to build the custom training & evaluation container.
-└── pyproject.toml      # Project dependencies and configuration.
+.
+├── Dockerfile                  # Defines the Docker image for the Vertex AI custom training and prediction jobs.
+├── GEMINI.md                   # Documentation for the Gemini CLI agent and project context.
+├── pyproject.toml              # Project dependencies and metadata, including build system configuration.
+├── pipelines/                  # Contains Kubeflow Pipelines (KFP) definitions and custom components.
+│   ├── components/             # Reusable pipeline components.
+│   │   ├── bless_model.py      # Conditional component to bless (promote) a new model.
+│   │   ├── bq_config_generator.py # Generates BigQuery configuration for pipeline jobs.
+│   │   ├── custom_batch_predict.py # Custom component for batch prediction.
+│   │   ├── data_splits.py      # Splits data into training, validation, and test sets.
+│   │   ├── evaluation.py       # Evaluates the trained model and generates metrics.
+│   │   ├── register.py         # Registers the model in Vertex AI Model Registry.
+│   │   ├── trainer.py          # Component for training the machine learning model.
+│   │   └── utils.py            # Utility functions for pipeline components.
+│   ├── pipeline_predict.py     # Defines the prediction and monitoring pipeline.
+│   └── pipeline_train.py       # Defines the training and promotion pipeline.
+├── src/                        # Source code for the core application logic and model, served from custom container.
+│   ├── common/                 # Shared utility functions and base classes.
+│   │   ├── base_sql.py         # Contains base SQL queries for data extraction.
+│   │   └── utils.py            # General utility functions.
+│   ├── components/             # Modularized components for various ML tasks.
+│   │   ├── custom_batch_predict/ # Contains logic for custom batch prediction.
+│   │   │   └── task.py         # Entrypoint for the custom batch prediction component.
+│   │   ├── data_prep/          # Data preparation and feature engineering.
+│   │   │   └── task.py         # Entrypoint for the data preparation component.
+│   │   ├── data_splits/        # Data splitting logic (train, validation, test).
+│   │   │   └── task.py         # Entrypoint for the data splitting component.
+│   │   ├── evaluation/         # Model evaluation logic.
+│   │   │   └── task.py         # Entrypoint for the model evaluation component.
+│   │   ├── register/           # Model registration logic.
+│   │   │   └── task.py         # Entrypoint for the model registration component.
+│   │   └── trainer/            # Model training logic.
+│   │       ├── model.py        # Defines the Wide & Deep Keras model architecture.
+│   │       └── task.py         # Entrypoint for the model training component.
 ```
 
 ---
