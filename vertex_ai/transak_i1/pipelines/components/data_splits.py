@@ -7,6 +7,7 @@ from google.cloud import bigquery
 from google_cloud_pipeline_components.types.artifact_types import BQTable
 
 @component(
+    base_image='python:3.9',
     packages_to_install=["pandas", "google-cloud-bigquery", "db-dtypes", "google-cloud-pipeline-components"],
 )
 def data_splits_op(
@@ -22,6 +23,11 @@ def data_splits_op(
     A component that reads golden data, splits it into train, validation, and test sets,
     and calculates statistics for each split, attaching them as metadata.
     """
+    
+    import pandas as pd
+    import numpy as np
+    from google.cloud import bigquery
+    
     def _calculate_dataframe_statistics(df: pd.DataFrame, target_column: str) -> dict:
         """Calculates various statistics for a given DataFrame."""
         stats = {}
@@ -33,12 +39,19 @@ def data_splits_op(
         stats['num_columns'] = len(df.columns) - 1 # Exclude target column
 
         # 3. Class Distribution (for classification)
-        if target_column in df.columns:
-            class_counts = df[target_column].value_counts()
+        # Use 'i1_true_label' for human-readable class names in statistics
+        if 'i1_true_label' in df.columns:
+            class_counts = df['i1_true_label'].value_counts()
             stats['class_distribution'] = class_counts.to_dict()
-            stats['class_distribution_percentage'] = (class_counts / len(df) * 100).to_dict()
+            stats['class_distribution_percentage'] = {k: round(v, 2) for k, v in (class_counts / len(df) * 100).to_dict().items()}
         else:
-            stats['class_distribution'] = 'Target column not found'
+            # Fallback if 'i1_true_label' is not found, use the provided target_column
+            if target_column in df.columns:
+                class_counts = df[target_column].value_counts()
+                stats['class_distribution'] = {str(k): v for k, v in class_counts.to_dict().items()} # Ensure keys are strings
+                stats['class_distribution_percentage'] = {str(k): round(v, 2) for k, v in (class_counts / len(df) * 100).to_dict().items()} # Ensure keys are strings
+            else:
+                stats['class_distribution'] = 'Target column or true label column not found'
 
         # Identify numerical and categorical columns
         numerical_cols = df.select_dtypes(include=np.number).columns.tolist()
@@ -51,16 +64,17 @@ def data_splits_op(
         numerical_stats = {}
         for col in numerical_cols:
             col_stats = {
-                'mean': df[col].mean(),
-                'median': df[col].median(),
-                'std': df[col].std(),
-                'min': df[col].min(),
-                'max': df[col].max(),
-                '25th_percentile': df[col].quantile(0.25),
-                '50th_percentile': df[col].quantile(0.50),
-                '75th_percentile': df[col].quantile(0.75),
+                'mean': float(df[col].mean()),
+                'median': float(df[col].median()),
+                'std': float(df[col].std()),
+                'min': float(df[col].min()),
+                'max': float(df[col].max()),
+                '25th_percentile': float(df[col].quantile(0.25)),
+                '50th_percentile': float(df[col].quantile(0.50)),
+                '75th_percentile': float(df[col].quantile(0.75)),
             }
-            numerical_stats[col] = {k: (None if pd.isna(v) else v) for k, v in col_stats.items()} # Replace NaN with None
+            # Round numerical stats to 2 decimal places
+            numerical_stats[col] = {k: (round(v, 2) if isinstance(v, (float, int)) else v) for k, v in col_stats.items()} # Replace NaN with None
         stats['numerical_features_stats'] = numerical_stats
 
         # 5. Missing Value Counts/Percentages
@@ -82,6 +96,7 @@ def data_splits_op(
         stats['categorical_features_cardinality'] = categorical_cardinality
 
         return stats
+
 
     # Construct the Fully Qualified Table Name (FQTN)
     fqtn = f"{golden_data_table.metadata['projectId']}.{golden_data_table.metadata['datasetId']}.{golden_data_table.metadata['tableId']}"

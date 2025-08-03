@@ -96,7 +96,7 @@ def main():
         monitor='val_loss', patience=3, verbose=1, restore_best_weights=True
     )
     tfboard = tf.keras.callbacks.TensorBoard(
-        log_dir=os.getenv('AIP_TENSORBOARD_LOG_DIR'), # Do not work. I could not get tensorboard working with this
+        log_dir=os.getenv('AIP_TENSORBOARD_LOG_DIR'), 
         # update_freq='epoch',
         histogram_freq=1,
         write_graph=True,

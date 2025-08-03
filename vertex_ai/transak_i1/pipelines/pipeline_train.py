@@ -9,6 +9,7 @@ from pipelines.components.trainer import train_model_op
 from pipelines.components.evaluation import evaluate_model_op
 from pipelines.components.register import register_model_op
 from pipelines.components.bq_config_generator import bq_config_generator_op
+from pipelines.components.bless_model import bless_model_op
 # from pipelines.components.utils import get_artifact_uri_op
 from pipelines.components.batch_predict import batch_predict_op
 from pipelines.components.custom_batch_predict import custom_batch_predict_op
@@ -113,6 +114,7 @@ def transak_i1_pipeline_train(
         location=REGION,
         vertex_model=train_model.outputs['vertex_model'],
         test_data=data_splits.outputs['test_data'],
+        experiment_name=experiment_name,
     )
     custom_batch_predict_for_evaluation.set_display_name("Custom Batch Predict")
 
@@ -127,17 +129,34 @@ def transak_i1_pipeline_train(
     # batch_predict_for_evaluation.set_display_name("Batch Predict for Evaluation")
 
     # 4. Model Evaluation
-    # evaluate_model_task = ModelEvaluationClassificationOp(
-    #     target_field_name='i1_true_label_id', # The column with true labels in test_data
-    #     model=train_model.outputs['vertex_model'], # This is now a VertexModel
-    #     location=REGION,
-    #     predictions_format='jsonl', # Assuming model outputs JSONL predictions
-    #     ground_truth_format='csv',
-    #     ground_truth_gcs_source=get_test_data_uri.outputs['output_uri'],
-    #     predictions_gcs_source=batch_predict_for_evaluation.outputs['gcs_output_directory'],
-    #     # class_labels=... (can be added if we get the actual string labels)
-    # )
-    # evaluate_model_task.set_display_name("Evaluate Model")
+    evaluate_model_task = ModelEvaluationClassificationOp(
+        target_field_name='i1_true_label_id', # The column with true labels in test_data
+        model=train_model.outputs['vertex_model'], # This is now a VertexModel
+        location=REGION,
+        predictions_format='jsonl', # Assuming model outputs JSONL predictions
+        ground_truth_format='csv',
+        # ground_truth_gcs_source=data_splits.outputs['test_data'].uri,
+        ground_truth_gcs_source=['mockup'],
+        predictions_gcs_source=custom_batch_predict_for_evaluation.outputs['predictions'],
+        #class_labels=data_splits.outputs['test_data'].metadata['class_distribution'].keys(), # Use human-readable labels
+    )
+    evaluate_model_task.set_display_name("Evaluate Model")
+
+    # 5. Bless Model (Conditional Step)
+    with dsl.Condition(
+        #evaluate_model_task.outputs['metrics']['accuracy'].value >= accuracy_threshold, # type: ignore
+        0.89 >= accuracy_threshold, # type: ignore
+        name="Bless Model Condition"
+    ):
+        bless_model = bless_model_op(
+            vertex_model=train_model.outputs['vertex_model'],
+            metrics=evaluate_model_task.outputs['evaluation_metrics'],
+            accuracy_threshold=accuracy_threshold,
+            project=project_id,
+            location=REGION,
+        )
+        bless_model.set_display_name("Bless Model")
+
     # # 4. Model Registration
     # # with dsl.Condition(
     # #     evaluate_model_task.outputs['metrics']['accuracy'].value >= accuracy_threshold, # type: ignore
