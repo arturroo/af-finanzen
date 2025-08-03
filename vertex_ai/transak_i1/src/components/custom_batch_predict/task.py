@@ -6,6 +6,7 @@ from google.cloud import aiplatform
 from src.common.utils import df2dataset
 import argparse
 import sys
+import os
 
 def main():
     parser = argparse.ArgumentParser(description="Perform batch predictions using a trained TensorFlow model.")
@@ -34,8 +35,8 @@ def main():
 
     # 3. Load the TensorFlow model
     loaded_model = tf.saved_model.load(model_artifact_uri)
-    predict_fn = loaded_model.signatures['serving_default']
     print("Model loaded successfully.")
+    print(dir(loaded_model))
 
     # 4. Load and prepare the test data
     print(f"Loading test data from: {args.test_data_uri}")
@@ -45,18 +46,38 @@ def main():
     instances = test_df.to_dict(orient='records')
 
     # Convert DataFrame to tf.data.Dataset for consistent preprocessing
-    # Use labels_id_column=None as we don't have labels for prediction
-    prediction_dataset = df2dataset(test_df, labels_id_column=None, shuffle=False, batch_size=32)
+    prediction_dataset = df2dataset(test_df, shuffle=False, batch_size=32, mode='inference')
 
-    # 5. Run predictions
-    print("Running predictions...")
+    # 5. Run predictions using the 'serving_default' signature
+    print("Running predictions using 'serving_default' signature...")
+    # This is reallye oneliner, but I need to understand this so I do prediction step by step
+    #predictions_tensor = loaded_model.signatures['serving_default'](prediction_dataset)
+    predict_fn = loaded_model.signatures['serving_default']
+    # predict_fn(image_tensor=t1, metadata_tensor=t2)
+    # predictions_tensor = predict_fn(prediction_dataset) # Commented out: Old prediction call
     all_predictions = []
-    for batch_features in prediction_dataset:
-        predictions_tensor = predict_fn(**batch_features)
+    for batch in prediction_dataset:
+        predictions_tensor = predict_fn(
+            amount=batch['amount'],
+            currency=batch['currency'],
+            description=batch['description'],
+            first_started_day=batch['first_started_day'],
+            first_started_month=batch['first_started_month'],
+            first_started_weekday=batch['first_started_weekday'],
+            first_started_year=batch['first_started_year'],
+            started_day=batch['started_day'],
+            started_month=batch['started_month'],
+            started_weekday=batch['started_weekday'],
+            started_year=batch['started_year'],
+            type=batch['type']
+        )
+        # The output of the model is a dictionary, so we need to extract the predictions.
         output_key = list(predictions_tensor.keys())[0]
         all_predictions.extend(predictions_tensor[output_key].numpy().tolist())
     
     print("Predictions generated successfully.")
+    output_dir = os.path.dirname(args.predictions_path)
+    os.makedirs(output_dir, exist_ok=True)
 
     # 6. Format and save predictions as a JSONL file
     print(f"Writing predictions to: {args.predictions_path}")

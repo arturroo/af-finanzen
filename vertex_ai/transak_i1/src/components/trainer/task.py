@@ -16,7 +16,6 @@ def _parse_args():
     parser.add_argument('--train-data-uri', required=True, type=str, help='GCS path to the training CSV file.')
     parser.add_argument('--val-data-uri', required=True, type=str, help='GCS path to the validation CSV file.')
     parser.add_argument('--output-model-path', required=True, type=str, help='GCS path to save the exported model.')
-    parser.add_argument('--vertex-model-path', required=True, type=str, help='Local path to write the Vertex AI Model resource name.')
     parser.add_argument('--num-epochs', required=True, type=int, help='Number of training epochs.')
     parser.add_argument('--learning-rate', required=True, type=float, help='Learning rate for the optimizer.')
     parser.add_argument('--batch-size', required=True, type=int, help='Training and validation batch size.')
@@ -25,9 +24,6 @@ def _parse_args():
     parser.add_argument('--project-id', required=True, type=str, help='GCP Project ID.')
     parser.add_argument('--region', required=True, type=str, help='GCP Region for Vertex AI resources.')
     parser.add_argument('--experiment-name', required=True, type=str, help='Name of the experiment for tracking.')
-    # parser.add_argument('--run-name', required=True, type=str, help='Name of the run for tracking.')
-    parser.add_argument('--model-display-name', required=True, type=str, help='Display name for the model in Vertex AI Model Registry.')
-    parser.add_argument('--serving-container-image-uri', required=True, type=str, help='URI of the serving container image.')
     return parser.parse_args()
 
 
@@ -113,6 +109,11 @@ def main():
     )
 
     # 5. Export Model for Deployment
+    # Trace the model with a single batch to ensure the __call__ method is saved.
+    print("Tracing model with a single batch to ensure __call__ is saved.")
+    for features, _ in train_ds.take(1):
+        model(features)
+        
     print(f"TF2 Model export: args.output_model_path: {args.output_model_path}")
     os.makedirs(os.path.dirname(args.output_model_path), exist_ok=True)
     print(f"TF2 Model export to: {args.output_model_path}")
@@ -137,35 +138,35 @@ def main():
     print(f"gsutil cp model.keras {gs_keras_model_path}/{keras_model_file_name}")
     os.system(f"gsutil cp model.keras {gs_keras_model_path}/{keras_model_file_name}")
 
-    # Look for an existing model with the same display name to set as parent
-    print(f"Searching for parent model with display name: {args.model_display_name}")
-    parent_model_resource_name = None
-    models = aiplatform.Model.list(
-        filter=f'display_name="{args.model_display_name}"',
-        project=args.project_id,
-        location=args.region,
-    )
-    if models:
-        parent_model_resource_name = models[0].resource_name
-        print(f"Found parent model: {parent_model_resource_name}")
-    else:
-        print("No parent model found. A new model entry will be created.")
+    # # Look for an existing model with the same display name to set as parent
+    # print(f"Searching for parent model with display name: {args.model_display_name}")
+    # parent_model_resource_name = None
+    # models = aiplatform.Model.list(
+    #     filter=f'display_name="{args.model_display_name}"',
+    #     project=args.project_id,
+    #     location=args.region,
+    # )
+    # if models:
+    #     parent_model_resource_name = models[0].resource_name
+    #     print(f"Found parent model: {parent_model_resource_name}")
+    # else:
+    #     print("No parent model found. A new model entry will be created.")
 
-    # Upload the model to Vertex AI Model Registry
-    print(f"Uploading model to Vertex AI Model Registry: {args.model_display_name}")
-    vertex_model = aiplatform.Model.upload(
-        display_name=args.model_display_name,
-        parent_model=parent_model_resource_name,
-        artifact_uri=args.output_model_path,
-        serving_container_image_uri=args.serving_container_image_uri,
-        description="Wide & Deep transaction classifier trained via a Vertex AI Pipeline.",
-        sync=True # Waits for the upload to complete
-    )
-    print(f"Model uploaded to registry: {vertex_model.resource_name}")
+    # # Upload the model to Vertex AI Model Registry
+    # print(f"Uploading model to Vertex AI Model Registry: {args.model_display_name}")
+    # vertex_model = aiplatform.Model.upload(
+    #     display_name=args.model_display_name,
+    #     parent_model=parent_model_resource_name,
+    #     artifact_uri=args.output_model_path,
+    #     serving_container_image_uri=args.serving_container_image_uri,
+    #     description="Wide & Deep transaction classifier trained via a Vertex AI Pipeline.",
+    #     sync=True # Waits for the upload to complete
+    # )
+    # print(f"Model uploaded to registry: {vertex_model.resource_name}")
 
-    # Write the Vertex Model resource name to the specified path
-    with open(args.vertex_model_path, 'w') as f:
-        f.write(vertex_model.resource_name)
+    # # Write the Vertex Model resource name to the specified path
+    # with open(args.vertex_model_path, 'w') as f:
+    #     f.write(vertex_model.resource_name)
 
 if __name__ == '__main__':
     main()
