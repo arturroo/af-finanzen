@@ -1,9 +1,4 @@
-import json
-import os
-import pandas as pd
-import numpy as np
 from kfp.v2.dsl import component, Input, Output, Dataset, Artifact
-from google.cloud import bigquery
 from google_cloud_pipeline_components.types.artifact_types import BQTable
 
 @component(
@@ -15,6 +10,7 @@ def data_splits_op(
     train_data: Output[Dataset],
     val_data: Output[Dataset],
     test_data: Output[Dataset],
+    class_labels: Output[Artifact],
     project_id: str,
     region: str,
     target_column: str,
@@ -23,7 +19,8 @@ def data_splits_op(
     A component that reads golden data, splits it into train, validation, and test sets,
     and calculates statistics for each split, attaching them as metadata.
     """
-    
+
+    import json
     import pandas as pd
     import numpy as np
     from google.cloud import bigquery
@@ -126,6 +123,11 @@ def data_splits_op(
     train_df.to_csv(train_data.path, index=False)
     val_df.to_csv(val_data.path, index=False)
     test_df.to_csv(test_data.path, index=False)
+
+    # Get and save class labels
+    labels = sorted(train_df['i1_true_label'].unique().tolist())
+    with open(class_labels.path, 'w') as f:
+        json.dump(labels, f)
 
     # Calculate and attach statistics as metadata
     train_data.metadata = _calculate_dataframe_statistics(train_df, target_column)

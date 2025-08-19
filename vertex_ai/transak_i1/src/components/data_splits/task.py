@@ -1,9 +1,10 @@
 import os
 import argparse
+import json
 import pandas as pd
 import numpy as np
 from google.cloud import bigquery
-from google.cloud import aiplatform
+# from google.cloud import aiplatform
 
 def _parse_args():
     """Parses command-line arguments for the data prep task."""

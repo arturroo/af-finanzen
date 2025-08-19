@@ -76,15 +76,24 @@ def main():
         all_predictions.extend(predictions_tensor[output_key].numpy().tolist())
     
     print("Predictions generated successfully.")
-    output_dir = os.path.dirname(args.predictions_path)
-    os.makedirs(output_dir, exist_ok=True)
-
     # 6. Format and save predictions as a JSONL file
-    print(f"Writing predictions to: {args.predictions_path}")
-    with open(args.predictions_path, 'w') as f:
+    # The predictions_path is now expected to be a directory.
+    # We will create a file inside this directory with the required prefix.
+    output_file_name = 'prediction.results-00000-of-00001' # Adhering to Vertex AI evaluation component requirements
+    output_file_path = os.path.join(args.predictions_path, output_file_name)
+    os.makedirs(args.predictions_path, exist_ok=True) # Ensure the directory exists
+
+    print(f"Writing predictions to: {output_file_path}")
+
+    # Get the feature columns in the correct order, excluding any potential label columns
+    feature_cols = [col for col in test_df.columns if col not in ['tid', 'i1_true_label', 'i1_true_label_id']]
+
+    with open(output_file_path, 'w') as f:
         for instance, pred in zip(instances, all_predictions):
+            # Create the instance payload as a list of values in the correct feature order
+            instance_values = [instance[col] for col in feature_cols]
             json_record = json.dumps({
-                "instance": instance,
+                "instance": instance_values,
                 "prediction": pred
             })
             f.write(json_record + '\n')

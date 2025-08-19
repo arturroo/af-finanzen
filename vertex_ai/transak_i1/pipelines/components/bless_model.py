@@ -1,6 +1,7 @@
 from kfp.v2.dsl import component, Input, Output, Model, Metrics
 from google.cloud import aiplatform
 from google_cloud_pipeline_components.types.artifact_types import VertexModel, ClassificationMetrics
+import json # Import json module
 
 @component(
     base_image="python:3.9",
@@ -9,13 +10,13 @@ from google_cloud_pipeline_components.types.artifact_types import VertexModel, C
 def bless_model_op(
     vertex_model: Input[VertexModel],
     metrics: Input[ClassificationMetrics],
-    accuracy_threshold: float,
+    production_accuracy: float,
     project: str,
     location: str,
 ):
     """
     A component that blesses a new model by assigning it the 'production' alias
-    in the Vertex AI Model Registry if its accuracy meets the threshold.
+    in the Vertex AI Model Registry if its accuracy is better than the current production model's accuracy.
     """
     print(f"Initializing AI Platform for project {project} in {location}...")
     aiplatform.init(project=project, location=location)
@@ -30,20 +31,24 @@ def bless_model_op(
         evaluation_metrics = f.read()
     metrics_dict = json.loads(evaluation_metrics)
     accuracy = metrics_dict['accuracy']
-    print(f"Model accuracy: {accuracy}, Threshold: {accuracy_threshold}")
+    print(f"Candidate model accuracy: {accuracy}, Production model accuracy: {production_accuracy}")
 
-    if accuracy >= accuracy_threshold:
-        print(f"Accuracy {accuracy} meets threshold {accuracy_threshold}. Blessing model...")
-        model_registry_object = aiplatform.Model(model_name=model_resource_name)
+    if accuracy > production_accuracy:
+        print(f"Candidate model accuracy {accuracy} is better than production model accuracy {production_accuracy}. Blessing model...")
 
-        # Remove 'production' alias from any existing model versions
-        # This is a more robust way to ensure only one model has the alias
-        for version in model_registry_object.version_aliases.get('production', []):
-            print(f"Removing 'production' alias from version: {version}")
-            model_registry_object.remove_version_aliases(['production'], version=version)
+        # Get the new model object
+        new_model = aiplatform.Model(model_name=model_resource_name)
 
-        # Assign 'production' alias to the new model version
-        model_registry_object.set_version_aliases(['production'])
-        print(f"Model {model_resource_name} blessed with 'production' alias.")
+        # Find the current production model (if any)
+        current_production_models = aiplatform.Model.list(filter='labels.aiplatform.googleapis.com/model_version_alias="production"')
+
+        if current_production_models:
+            for old_model in current_production_models:
+                print(f"Removing 'production' alias from old model: {old_model.resource_name}")
+                old_model.remove_version_aliases(aliases=['production'])
+
+        # Assign 'production' alias to the new model
+        new_model.set_version_aliases(aliases=['production'])
+        print(f"Model {new_model.resource_name} blessed with 'production' alias.")
     else:
-        print(f"Accuracy {accuracy} does not meet threshold {accuracy_threshold}. Model not blessed.")
+        print(f"Candidate model accuracy {accuracy} is not better than production model accuracy {production_accuracy}. Model not blessed.")

@@ -1,37 +1,30 @@
-from kfp.dsl import container_component, ContainerSpec, Input, Output, Model, Dataset, Metrics, HTML
+from kfp.dsl import Input, Model, Artifact, Dataset
+from google_cloud_pipeline_components.v1.model_evaluation import ModelEvaluationClassificationOp
 
-TRAIN_PREDICT_CONTAINER_IMAGE_URI = "europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train-predict:latest"
-
-@container_component
 def evaluate_model_op(
+    project: str,
+    location: str,
+    target_field_name: str,
     model: Input[Model],
-    test_data: Input[Dataset],
-    metrics: Output[Metrics],
-    confusion_matrix: Output[HTML],
-    tensorboard_resource_name: str,
-    project_id: str,
-    region: str,
-    experiment_name: str = "experiment_name",
-    run_name: str = "run_name"
+    predictions: Input[Dataset],
+    ground_truth: Input[Dataset],
+    class_labels: list,
 ):
     """
-    A containerized component that runs the model evaluation task.
-    It takes a trained model and a test set, and produces evaluation
-    metrics and a confusion matrix visualization.
+    Factory function for a ModelEvaluationClassificationOp task.
+
+    This function creates and configures a ModelEvaluationClassificationOp task.
+    It is not a component itself, but it helps to encapsulate the evaluation
+    logic and keep the main pipeline file cleaner.
     """
-    return ContainerSpec(
-        image=TRAIN_PREDICT_CONTAINER_IMAGE_URI,
-        command=[
-            "python",
-            "-m", "src.components.evaluation.task",
-            "--model-path", model.path,
-            "--test-data-uri", test_data.uri,
-            "--metrics-path", metrics.path,
-            "--confusion-matrix-path", confusion_matrix.path,
-            "--tensorboard-resource-name", str(tensorboard_resource_name),
-            "--project-id", project_id,
-            "--region", region,
-            "--experiment-name", experiment_name,
-            "--run-name", run_name
-        ]
+    return ModelEvaluationClassificationOp(
+        project=project,
+        location=location,
+        target_field_name=target_field_name,
+        model=model,
+        predictions_format='jsonl',
+        predictions_gcs_source=predictions.uri,
+        ground_truth_format='csv',
+        ground_truth_gcs_source=[ground_truth.uri],
+        class_labels=class_labels,
     )
