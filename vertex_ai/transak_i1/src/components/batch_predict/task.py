@@ -41,7 +41,7 @@ def main():
     # 4. Load and prepare the test data
     print(f"Loading test data from: {args.test_data_uri}")
     test_df = pd.read_csv(args.test_data_uri)
-    
+
     # Keep original instances for the output file
     instances = test_df.to_dict(orient='records')
 

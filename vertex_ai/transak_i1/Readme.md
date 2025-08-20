@@ -96,7 +96,7 @@ This project is designed to be run as a Vertex AI Pipeline.
     * Ensure the Google Cloud SDK is installed and configured.
     * Create a local Python virtual environment and install dependencies from `pyproject.toml` using `uv pip install .[all]`.
 
-2.  **Build the Container:**
+2.  **Build the Containers:**
     * From the project root, run the following command to build the custom container and push it to Artifact Registry:
         ```bash
         gcloud builds submit --region="europe-west1" --tag="europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train-predict:latest" .

@@ -18,7 +18,7 @@ dependencies = [
     "google-cloud-bigquery-storage==2.31.0",
     "google-cloud-aiplatform[autologging]==1.100.0",
     "pydot==4.0.1",
-    "graphviz==0.21",
+    "graphviz==0.21"
 ]
 
 [project.optional-dependencies]

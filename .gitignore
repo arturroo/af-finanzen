@@ -192,3 +192,11 @@ jupiter/transak/i1/feature_column/i1_fe_feature_column_predictions.ipynb
 jupiter/transak/i1/keras_functional_api/transak-i1-pipeline-subclassing.json
 jupiter/transak/i1/keras_functional_api/notebooks/i1_eda.ipynb
 vertex_ai/transak_i1/transak-i1-train.json
+
+# Backups
+*.bak
+
+# Model
+*.pb
+variables.data-00000-of-00001
+variables.index

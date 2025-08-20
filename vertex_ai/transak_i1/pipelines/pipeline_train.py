@@ -9,6 +9,7 @@ from pipelines.components.trainer import train_model_op
 from pipelines.components.register import register_model_op
 from pipelines.components.bq_config_generator import bq_config_generator_op
 from pipelines.components.bless_model import bless_model_op
+from pipelines.components.evaluation import model_evaluation_op
 from pipelines.components.get_production_model_metrics import get_production_model_metrics_op
 from pipelines.components.utils import get_artifact_uri_list, read_json_labels_op
 #from pipelines.components.batch_predict import batch_predict_op
@@ -136,28 +137,39 @@ def transak_i1_pipeline_train(
     )
     read_labels_task.set_display_name("Read Class Labels")
 
-    # 6. Model Evaluation
-    evaluate_model_task = ModelEvaluationClassificationOp(
+    # # 6. Model Evaluation
+    # evaluate_model_task = ModelEvaluationClassificationOp(
+    #     project=project_id,
+    #     location=REGION,
+    #     target_field_name='i1_true_label_id',
+    #     # model=register_model.outputs['vertex_model'],
+    #     prediction_score_column='prediction',
+    #     predictions_format='jsonl',
+    #     predictions_gcs_source=batch_predict_for_evaluation.outputs['predictions'],
+    #     ground_truth_format='csv',
+    #     ground_truth_gcs_source=get_ground_truth_uri_list_task.output,
+    #     class_labels=read_labels_task.output,
+    # )
+    # evaluate_model_task.set_display_name("Evaluate Model")
+
+    # # 7. Import Model Evaluation
+    # import_evaluation_task = ModelImportEvaluationOp(
+    #     classification_metrics=evaluate_model_task.outputs["evaluation_metrics"],
+    #     model=register_model.outputs["vertex_model"],
+    #     display_name="Import Model Evaluation",
+    # )
+    # import_evaluation_task.after(evaluate_model_task)
+
+    # 6. Model Evaluation (Custom)
+    evaluation_task = model_evaluation_op(
         project=project_id,
         location=REGION,
-        target_field_name='i1_true_label_id',
-        # model=register_model.outputs['vertex_model'],
-        prediction_score_column='prediction',
-        predictions_format='jsonl',
-        predictions_gcs_source=batch_predict_for_evaluation.outputs['predictions'],
-        ground_truth_format='csv',
-        ground_truth_gcs_source=get_ground_truth_uri_list_task.output,
+        model=train_model.outputs['output_model'],
+        test_data=data_splits.outputs['test_data'],
+        predictions=batch_predict_for_evaluation.outputs['predictions'],
         class_labels=read_labels_task.output,
     )
-    evaluate_model_task.set_display_name("Evaluate Model")
-
-    # 7. Import Model Evaluation
-    import_evaluation_task = ModelImportEvaluationOp(
-        classification_metrics=evaluate_model_task.outputs["evaluation_metrics"],
-        model=register_model.outputs["vertex_model"],
-        display_name="Import Model Evaluation",
-    )
-    import_evaluation_task.after(evaluate_model_task)
+    evaluation_task.set_display_name("Evaluate Model (Custom)")
 
     # Get production model metrics
     get_prod_model_metrics = get_production_model_metrics_op(
@@ -234,8 +246,8 @@ if __name__ == "__main__":
                     "run_name": run_name,
                     "target_column": "i1_true_label_id",
                 },
-                #enable_caching=False  # Disable caching to ensure all new code runs
-                enable_caching=True  # Enable caching to skip already executed steps
+                enable_caching=False  # Disable caching to ensure all new code runs
+                #enable_caching=True  # Enable caching to skip already executed steps
             )
 
             print(f"Submitting pipeline job '{PIPELINE_NAME}' to Vertex AI...")

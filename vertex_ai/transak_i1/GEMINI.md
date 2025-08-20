@@ -44,18 +44,18 @@ The entire system is orchestrated by **Vertex AI Pipelines**, with each step run
     * **Action:** Trains our custom Wide & Deep Keras model on the `train` and `val` datasets, logging all metrics in real-time to **Vertex AI TensorBoard**. The `tid` column is dropped from the dataframes before being fed to the model.
     * **Output:** A trained `Model` artifact in the TensorFlow SavedModel format.
 
-5.  **`batch_predict_for_evaluation`** (using `BatchPredictionJobOp`)
+5.  **`batch_predict`** (using same method as `BatchPredictionJobOp` (predictions from model signature) but in custom container)
     *   **Input:** The trained `Model` artifact from `train_model_op` and the `test` `Dataset` artifact from `data_splits_op`.
     *   **Action:** Triggers a Vertex AI Batch Prediction Job using the newly trained model and the `test` dataset. The predictions are saved to a GCS location.
     *   **Output:** GCS URI of the batch predictions.
 
-6.  **`model_evaluation_op`** (using `ModelEvaluationOp`)
-    *   **Input:** The trained `Model` artifact from `train_model_op`, the `test` `Dataset` artifact from `data_splits_op`, and the batch predictions from `batch_predict_for_evaluation`.
-    *   **Action:** This is a pre-built Google Cloud Pipeline Component. It takes the trained model, the `test` dataset (as ground truth), and the batch predictions. It automatically calculates a rich set of classification metrics and generates interactive visualizations (like a **confusion matrix** and **ROC curve**) directly in the Vertex AI UI.
-    *   **Output:** Evaluation metrics and visualizations.
+6.  **`model_evaluation_op`** (using same method as `ModelEvaluationOp` (model statistics from TFMA) but in custom container)
+    *   **Input:** The trained `Model` artifact from `train_model_op`, the `test` `Dataset` artifact from `data_splits_op`, and the batch predictions from `batch_predict`.
+    *   **Action:** It takes the `test` dataset (as ground truth), and the batch predictions in format proper for ModelEvaluationClassificationOp (gs://.../predictions/prediction-results-00000-of-00001). It automatically calculates a same set of classification metrics as ModelEvaluationClassificationOp and generates interactive visualizations (like a **confusion matrix** and **ROC curve**) directly in the Vertex AI UI for later upload those metrics alongside to the registered model. Here is used custom evaluation, because there was a day invested in running Pre-built Google Cloud Pipeline Component ModelEvaluationClassificationOp without success.
+    *   **Output:** Google evaluation metrics and visualizations.
 
 7.  **`bless_model_op` (Conditional Step)**
-    *   **Action:** This is our final quality gate, implemented as a `dsl.Condition`. It runs **only if** the new `candidate` model's accuracy is greater than our 88% threshold.
+    *   **Action:** This is our final quality gate, implemented as a `dsl.Condition`. It runs **only if** the new `candidate` model's accuracy is greater than currently blessed model (Continuous Improvement).
     * If the condition is met, this component uses the Vertex AI SDK to **update the model's aliases** in the Model Registry. It removes the `production` alias from the old model version and assigns it to our new, superior `candidate` version. The new model is now officially "blessed".
 
 ---
