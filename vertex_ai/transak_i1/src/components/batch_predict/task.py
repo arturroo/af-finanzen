@@ -85,15 +85,16 @@ def main():
 
     print(f"Writing predictions to: {output_file_path}")
 
-    # Get the feature columns in the correct order, excluding any potential label columns
-    feature_cols = [col for col in test_df.columns if col not in ['tid', 'i1_true_label', 'i1_true_label_id']]
+    # not needed in custom evaluation # Get the feature columns in the correct order, excluding any potential label columns
+    # not needed in custom evaluation feature_cols = [col for col in test_df.columns if col not in ['tid', 'i1_true_label', 'i1_true_label_id']]
 
     with open(output_file_path, 'w') as f:
         for instance, pred in zip(instances, all_predictions):
-            # Create the instance payload as a list of values in the correct feature order
-            instance_values = [instance[col] for col in feature_cols]
+            # not needed in custom evaluation # Create the instance payload as a list of values in the correct feature order
+            # not needed in custom evaluation instance_values = [instance[col] for col in feature_cols]
             json_record = json.dumps({
-                "instance": instance_values,
+                # "instance": instance_values,
+                "instance": instance,
                 "prediction": pred
             })
             f.write(json_record + '\n')
