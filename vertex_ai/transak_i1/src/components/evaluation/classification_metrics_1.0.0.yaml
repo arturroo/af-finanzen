@@ -5,11 +5,6 @@
 title: ClassificationEvaluationMetrics
 type: object
 properties:
-  accuracy:
-    type: number
-    format: float
-    description: >
-      Optional summary metric describing accuracy of a model.
   auPrc:
     type: number
     format: float
