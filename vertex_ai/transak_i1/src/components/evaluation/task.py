@@ -10,7 +10,8 @@ from sklearn.metrics import (
     confusion_matrix,
     precision_recall_fscore_support,
 )
-from google.cloud import storage
+from google.cloud import aiplatform, storage
+from google.cloud.aiplatform import gapic
 
 # Initialize Google Cloud Storage client
 storage_client = storage.Client()
@@ -54,8 +55,21 @@ def main():
     parser.add_argument("--class_labels_uri", type=str, required=True, help="GCS URI to the class labels JSON.")
     parser.add_argument("--output_path", type=str, required=True, help="Local path to save the evaluation metrics JSON.")
     parser.add_argument("--target_column", type=str, default='i1_true_label_id', help="Name of the target column in the instance data.")
+    parser.add_argument("--project", type=str, required=True, help="Google Cloud project ID.")
+    parser.add_argument("--location", type=str, required=True, help="Google Cloud location.")
+    parser.add_argument("--model_resource_path", type=str, required=True, help="Path to the Vertex AI model resource name file.")
+    parser.add_argument("--evaluation_display_name", type=str, required=True, help="Display name for the model evaluation.")
+
 
     args = parser.parse_args()
+
+    aiplatform.init(project=args.project, location=args.location)
+
+    # Read the model resource name from the input artifact
+    print(f"Reading model resource name from: {args.model_resource_path}")
+    with open(args.model_resource_path, 'r') as f:
+        model_resource_name = f.read().strip()
+    print(f"Retrieved model resource name: {model_resource_name}")
 
     print("Loading predictions and ground truth...")
     predictions_list = _read_gcs_jsonl(args.predictions_uri)
@@ -121,26 +135,30 @@ def main():
         false_positive_rate = FP / (FP + TN) if (FP + TN) > 0 else 0.0
 
         confidence_metrics.append({
-            "confidenceThreshold": threshold, "recall": recall, "precision": precision,
-            "falsePositiveRate": false_positive_rate, "f1Score": f1_score,
-            "truePositiveCount": int(TP), "falsePositiveCount": int(FP),
-            "falseNegativeCount": int(FN), "trueNegativeCount": int(TN)
+            "confidenceThreshold": threshold, 
+            "recall": recall, 
+            "precision": precision,
+            "f1Score": f1_score,
         })
 
     # --- Calculate Overall Confusion Matrix ---
     print("Calculating overall confusion matrix...")
     overall_cm = confusion_matrix(y_true, y_pred, labels=range(len(sorted_class_labels)))
-    cm_rows = [{"row": row} for row in overall_cm.tolist()]
+    cm_rows_list = overall_cm.tolist()
+    cm_rows = [{"row": row} for row in cm_rows_list]
 
     confusion_matrix_output = {
-        "annotationSpecs": [{"displayName": label} for label in sorted_class_labels],
+        "annotationSpecs": [{ "id": str(i), "displayName": label} for i, label in enumerate(sorted_class_labels)],
         "rows": cm_rows,
     }
 
     # --- Construct Final Evaluation Metrics Dictionary ---
     evaluation_metrics = {
-        "auPrc": au_prc, "auRoc": au_roc, "logLoss": logloss,
-        "confidenceMetrics": confidence_metrics, "confusionMatrix": confusion_matrix_output,
+        "auPrc": au_prc,
+        "auRoc": au_roc,
+        "logLoss": logloss,
+        "confidenceMetrics": confidence_metrics,
+        # "confusionMatrix": confusion_matrix_output,
     }
 
     output_dir = os.path.dirname(args.output_path)
@@ -151,6 +169,34 @@ def main():
         json.dump(evaluation_metrics, f, indent=4)
 
     print("Evaluation metrics saved successfully.")
+
+    # --- Upload metrics to Vertex AI Model Registry ---
+    print("Uploading evaluation metrics to Vertex AI Model Registry...")
+    
+    # Define the schema URI for classification metrics
+    METRICS_SCHEMA_URI = "gs://google-cloud-aiplatform/schema/modelevaluation/classification_metrics_1.0.0.yaml"
+
+    # Create the ModelEvaluation object
+    model_evaluation = gapic.ModelEvaluation(
+        display_name=args.evaluation_display_name,
+        metrics_schema_uri=METRICS_SCHEMA_URI,
+        metrics=evaluation_metrics,
+    )
+
+    # Initialize the ModelServiceClient
+    API_ENDPOINT = f"{args.location}-aiplatform.googleapis.com"
+    client_options = {"api_endpoint": API_ENDPOINT}
+    client = gapic.ModelServiceClient(client_options=client_options)
+
+    # Create the import request
+    request = gapic.ImportModelEvaluationRequest(
+        parent=model_resource_name,
+        model_evaluation=model_evaluation,
+    )
+
+    # Import the evaluation
+    response = client.import_model_evaluation(request=request)
+    print(f"Successfully imported model evaluation: {response.name}")
 
 if __name__ == "__main__":
     main()
