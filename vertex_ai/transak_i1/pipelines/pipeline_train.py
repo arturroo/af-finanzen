@@ -132,7 +132,7 @@ def transak_i1_pipeline_train(
         predictions=batch_predict_for_evaluation.outputs['predictions'],
         class_labels=data_splits.outputs['class_labels'],
         vertex_model=register_model.outputs['vertex_model'],
-        cache_trigger4=True
+        cache_trigger5=True
     )
     evaluation_task.set_display_name("Evaluate Model (Custom)")
 

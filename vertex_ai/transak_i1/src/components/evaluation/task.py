@@ -102,43 +102,82 @@ def main():
     print("Calculating confidence metrics...")
     confidence_metrics = []
     confidence_thresholds = [i / 100.0 for i in range(0, 100, 5)] + [0.96, 0.97, 0.98, 0.99]
+    num_classes = len(sorted_class_labels)
 
     for threshold in confidence_thresholds:
         y_pred_thresholded = np.where(np.max(y_pred_proba, axis=1) >= threshold, y_pred, -1)
         valid_indices = y_pred_thresholded != -1
-        
+
         if not np.any(valid_indices):
             confidence_metrics.append({
-                "confidenceThreshold": threshold, "recall": 0.0, "precision": 0.0,
-                "falsePositiveRate": 0.0, "f1Score": 0.0, "truePositiveCount": 0,
-                "falsePositiveCount": 0, "falseNegativeCount": 0, "trueNegativeCount": len(y_true)
+                "confidenceThreshold": threshold,
+                "maxPredictions": 2147483647,
+                "recall": 0.0, "precision": 0.0, "falsePositiveRate": 0.0,
+                "f1Score": 0.0, "f1ScoreMicro": 0.0, "f1ScoreMacro": 0.0,
+                "recallAt1": 0.0, "precisionAt1": 0.0, "falsePositiveRateAt1": 0.0, "f1ScoreAt1": 0.0,
+                "truePositiveCount": 0, "falsePositiveCount": 0,
+                "falseNegativeCount": len(y_true), "trueNegativeCount": len(y_true) * (num_classes - 1),
+                "confusionMatrix": {
+                    "annotationSpecs": [{"id": str(i), "displayName": label} for i, label in enumerate(sorted_class_labels)],
+                    "rows": [{"row": [0] * num_classes} for _ in range(num_classes)]
+                }
             })
             continue
 
         y_true_filtered = y_true[valid_indices]
         y_pred_filtered = y_pred_thresholded[valid_indices]
-        num_classes = len(sorted_class_labels)
+
+        # --- Metric Calculations ---
+        precision_micro, recall_micro, f1_micro, _ = precision_recall_fscore_support(
+            y_true_filtered, y_pred_filtered, average='micro', labels=range(num_classes), zero_division=0
+        )
+        _, _, f1_macro, _ = precision_recall_fscore_support(
+            y_true_filtered, y_pred_filtered, average='macro', labels=range(num_classes), zero_division=0
+        )
+
         cm_filtered = confusion_matrix(y_true_filtered, y_pred_filtered, labels=range(num_classes))
 
-        TP = np.sum(np.diag(cm_filtered))
-        FP = np.sum(cm_filtered) - TP
-        FN = cm_filtered.sum() - TP # This is TP + FN + FP - TP = FN + FP
-        # Correcting FP and FN calculation
-        FP = cm_filtered.sum(axis=0).sum() - TP
-        FN = cm_filtered.sum(axis=1).sum() - TP
-        TN = len(y_true) * num_classes - (TP + FP + FN)
+        # --- Counts ---
+        tp_count = int(np.diag(cm_filtered).sum())
+        fp_count = int(cm_filtered.sum() - tp_count)
+        fn_count = len(y_true) - tp_count
 
+        tn_per_class = []
+        fp_per_class = []
+        for i in range(num_classes):
+            tp = cm_filtered[i, i]
+            fp = cm_filtered[:, i].sum() - tp
+            fn = cm_filtered[i, :].sum() - tp
+            tn = cm_filtered.sum() - (tp + fp + fn)
+            fp_per_class.append(fp)
+            tn_per_class.append(tn)
 
-        precision = TP / (TP + FP) if (TP + FP) > 0 else 0.0
-        recall = TP / (TP + FN) if (TP + FN) > 0 else 0.0
-        f1_score = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
-        false_positive_rate = FP / (FP + TN) if (FP + TN) > 0 else 0.0
+        tn_total = sum(tn_per_class)
+        fp_total = sum(fp_per_class)
+        false_positive_rate = fp_total / (fp_total + tn_total) if (fp_total + tn_total) > 0 else 0.0
 
+        # Since we take the argmax, we are always dealing with 1 prediction, so At1 metrics are the same
         confidence_metrics.append({
-            "confidenceThreshold": threshold, 
-            "recall": recall, 
-            "precision": precision,
-            "f1Score": f1_score,
+            "confidenceThreshold": threshold,
+            "maxPredictions": 2147483647,
+            "recall": recall_micro,
+            "precision": precision_micro,
+            "falsePositiveRate": false_positive_rate,
+            "f1Score": f1_micro,
+            "f1ScoreMicro": f1_micro,
+            "f1ScoreMacro": f1_macro,
+            "recallAt1": recall_micro,
+            "precisionAt1": precision_micro,
+            "falsePositiveRateAt1": false_positive_rate,
+            "f1ScoreAt1": f1_micro,
+            "truePositiveCount": tp_count,
+            "falsePositiveCount": fp_count,
+            "falseNegativeCount": fn_count,
+            "trueNegativeCount": int(tn_total)
+            # "confusionMatrix": {
+            #     "annotationSpecs": [{"id": str(i), "displayName": label} for i, label in enumerate(sorted_class_labels)],
+            #     "rows": [{"row": row} for row in cm_filtered.tolist()]
+            # }
         })
 
     # --- Calculate Overall Confusion Matrix ---
