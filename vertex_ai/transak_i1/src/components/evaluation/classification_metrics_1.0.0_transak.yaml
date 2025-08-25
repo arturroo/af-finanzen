@@ -1,10 +1,15 @@
 # Sources:
 # - https://cloud.google.com/vertex-ai/docs/tabular-data/classification-regression/evaluate-model#metrics
 # - https://console.cloud.google.com/storage/browser/_details/google-cloud-aiplatform/schema/modelevaluation/classification_metrics_1.0.0.yaml
-# - gs://google-cloud-aiplatform/schema/modelevaluation/classification_metrics_1.0.0.yaml
+# - original schema: gs://google-cloud-aiplatform/schema/modelevaluation/classification_metrics_1.0.0.yaml
 title: ClassificationEvaluationMetrics
 type: object
 properties:
+  accuracy:
+    type: number
+    format: float
+    description: >
+      Optional summary metric describing accuracy of a model.
   auPrc:
     type: number
     format: float
