@@ -132,9 +132,11 @@ def transak_i1_pipeline_train(
         predictions=batch_predict_for_evaluation.outputs['predictions'],
         class_labels=data_splits.outputs['class_labels'],
         vertex_model=register_model.outputs['vertex_model'],
-        cache_trigger5=True
+        cache_trigger11=True
     )
     evaluation_task.set_display_name("Evaluate Model (Custom)")
+
+    from pipelines.components.calc_f1_scores import calc_f1_scores_op
 
     # Get production model metrics
     get_prod_model_metrics = get_production_model_metrics_op(
@@ -144,15 +146,22 @@ def transak_i1_pipeline_train(
     )
     get_prod_model_metrics.set_display_name("Get Production Model Metrics")
 
+    # Calculate F1 scores for comparison
+    calc_f1_scores = calc_f1_scores_op(
+        candidate_evaluation_artifact=evaluation_task.outputs['evaluation_metrics'],
+        production_evaluation_artifact=get_prod_model_metrics.outputs['production_evaluation'],
+    )
+    calc_f1_scores.set_display_name("Calculate F1 Scores")
+
     # # 8. Bless Model (Conditional Step)
     # with dsl.Condition(
-    #     evaluate_model_task.outputs['evaluation_metrics'].accuracy >= get_prod_model_metrics.output, # type: ignore
+    #     calc_f1_scores.outputs['max_f1_micro_candidate'] > calc_f1_scores.outputs['max_f1_micro_production'],
     #     name="Bless Model Condition"
     # ):
     #     bless_model = bless_model_op(
     #         vertex_model=register_model.outputs['vertex_model'],
-    #         metrics=evaluate_model_task.outputs['evaluation_metrics'],
-    #         production_accuracy=get_prod_model_metrics.output,
+    #         metrics=evaluation_task.outputs['evaluation_metrics'],
+    #         production_accuracy=calc_f1_scores.outputs['max_f1_micro_production'],
     #         project=project_id,
     #         location=REGION,
     #     )

@@ -1,4 +1,5 @@
-from kfp.v2.dsl import component
+from kfp.dsl import component, Output
+from google_cloud_pipeline_components.types.artifact_types import ClassificationMetrics
 
 @component(
     base_image="python:3.9",
@@ -8,18 +9,16 @@ def get_production_model_metrics_op(
     project: str,
     location: str,
     model_display_name: str,
-) -> float:
+    production_evaluation: Output[ClassificationMetrics],
+):
     """
-    A component that retrieves the key metric (auPrc or accuracy) of the model 
+    A component that retrieves the evaluation artifact of the model
     currently aliased as 'production' in the Vertex AI Model Registry.
     """
     from google.cloud import aiplatform
-    import json
 
     print(f"Initializing AI Platform for project {project} in {location}...")
     aiplatform.init(project=project, location=location)
-
-    production_metric_value = 0.0
 
     all_models = aiplatform.Model.list(filter=f'display_name="{model_display_name}"')
 
@@ -35,28 +34,14 @@ def get_production_model_metrics_op(
         if evaluations:
             latest_evaluation = evaluations[0]
             print(f"Found evaluation: {latest_evaluation.resource_name}")
-            
-            metrics = latest_evaluation.metrics
-            metrics_dict = {}
-            if isinstance(metrics, str):
-                try:
-                    metrics_dict = json.loads(metrics)
-                except json.JSONDecodeError:
-                    print(f"Could not parse metrics string: {metrics}")
-            elif isinstance(metrics, dict):
-                metrics_dict = metrics
-
-            if 'auPrc' in metrics_dict:
-                production_metric_value = metrics_dict['auPrc']
-                print(f"Production model auPrc: {production_metric_value}")
-            elif 'accuracy' in metrics_dict:
-                production_metric_value = metrics_dict['accuracy']
-                print(f"Production model accuracy: {production_metric_value}")
-            else:
-                print("Neither 'auPrc' nor 'accuracy' found in production model's evaluation metrics.")
+            # Simply pass the URI of the latest evaluation artifact
+            production_evaluation.uri = latest_evaluation.uri
+            print(f"Set production evaluation URI to: {production_evaluation.uri}")
         else:
             print("No evaluations found for the production model.")
+            # Create an empty artifact if no evaluation exists
+            production_evaluation.uri = "gcs://dummy/uri"
     else:
         print("No model with 'production' alias found.")
-
-    return production_metric_value
+        # Create an empty artifact if no production model exists
+        production_evaluation.uri = "gcs://dummy/uri"
