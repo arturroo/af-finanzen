@@ -59,7 +59,8 @@ def main():
     parser.add_argument("--target_column", type=str, default='i1_true_label_id', help="Name of the target column in the instance data.")
     parser.add_argument("--project", type=str, required=True, help="Google Cloud project ID.")
     parser.add_argument("--location", type=str, required=True, help="Google Cloud location.")
-    parser.add_argument("--model_resource_path", type=str, required=True, help="Path to the Vertex AI model resource name file.")
+    parser.add_argument("--vertex_model_path", type=str, required=True, help="The Vertex AI model path with model version resource name saved in a file.")
+    # parser.add_argument("--model_resource_name", type=str, required=True, help="The Vertex AI model resource name including version.")
     parser.add_argument("--evaluation_display_name", type=str, required=True, help="Display name for the model evaluation.")
 
 
@@ -68,10 +69,17 @@ def main():
     aiplatform.init(project=args.project, location=args.location)
 
     # Read the model resource name from the input artifact
-    print(f"Reading model resource name from: {args.model_resource_path}")
-    with open(args.model_resource_path, 'r') as f:
-        model_resource_name = f.read().strip()
+    import json
+    from pathlib import Path
+    metadata_file_path = Path(args.vertex_model_path) / "vertex_model_metadata.json"
+    print(f"Reading model resource name from: {metadata_file_path}")
+    with open(metadata_file_path, 'r') as f:
+        model_resource_name = json.load(f)["resourceName"]
     print(f"Retrieved model resource name: {model_resource_name}")
+    
+    # with open(args.model_resource_path, 'r') as f:
+    #     model_resource_name = f.read().strip()
+    # print(f"Retrieved model resource name: {model_resource_name}")
 
     print("Loading predictions and ground truth...")
     predictions_list = _read_gcs_jsonl(args.predictions_uri)
@@ -258,6 +266,7 @@ def main():
     client = gapic.ModelServiceClient(client_options=client_options)
     
     # Create the import request
+    print(f"Importing model evaluation into: {model_resource_name}")
     request = gapic.ImportModelEvaluationRequest(
         parent=model_resource_name,
         model_evaluation=model_evaluation,

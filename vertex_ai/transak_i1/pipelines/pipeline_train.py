@@ -10,7 +10,7 @@ from pipelines.components.register import register_model_op
 from pipelines.components.bq_config_generator import bq_config_generator_op
 from pipelines.components.bless_model import bless_model_op
 from pipelines.components.evaluation import model_evaluation_op
-from pipelines.components.get_production_model_metrics import get_production_model_metrics_op
+from pipelines.components.get_production_model import get_production_model_op
 from pipelines.components.utils import get_artifact_uri_list, read_json_labels_op
 #from pipelines.components.batch_predict import batch_predict_op
 from pipelines.components.batch_predict import batch_predict_op
@@ -20,6 +20,8 @@ from google_cloud_pipeline_components.preview.model_evaluation import ModelImpor
 # from google_cloud_pipeline_components.v1.batch_predict_job import ModelBatchPredictOp
 from src.common.base_sql import raw_data_query
 # from google.cloud import bigquery
+from pipelines.components.get_production_model import get_production_model_op # Updated import
+from pipelines.components.calc_f1_scores import calc_f1_scores_op
 
 
 # Define Your Pipeline Configuration
@@ -112,60 +114,80 @@ def transak_i1_pipeline_train(
         project_id=project_id,
         region=REGION,
         experiment_name=experiment_name,
+        disable_cache2=True
     )
     register_model.set_display_name("Register Model")
 
-    # 5. Batch Prediction for Evaluation
-    batch_predict_for_evaluation = batch_predict_op(
-        project=project_id,
-        location=REGION,
-        vertex_model=register_model.outputs['vertex_model'],
-        test_data=data_splits.outputs['test_data'],
-        experiment_name=experiment_name,
-    )
-    batch_predict_for_evaluation.set_display_name("Batch Predict")
-
-    # 6. Model Evaluation (Custom)
-    evaluation_task = model_evaluation_op(
-        project=project_id,
-        location=REGION,
-        predictions=batch_predict_for_evaluation.outputs['predictions'],
-        class_labels=data_splits.outputs['class_labels'],
-        vertex_model=register_model.outputs['vertex_model'],
-        cache_trigger11=True
-    )
-    evaluation_task.set_display_name("Evaluate Model (Custom)")
-
-    from pipelines.components.calc_f1_scores import calc_f1_scores_op
-
-    # Get production model metrics
-    get_prod_model_metrics = get_production_model_metrics_op(
+   # Get production model
+    get_prod_model = get_production_model_op( # type: ignore
         project=project_id,
         location=REGION,
         model_display_name=f"{PIPELINE_NAME}-model",
     )
-    get_prod_model_metrics.set_display_name("Get Production Model Metrics")
+    get_prod_model.set_display_name("Get Production Model")
 
-    # Calculate F1 scores for comparison
-    calc_f1_scores = calc_f1_scores_op(
+    # Batch Prediction for Evaluation (Production Model)
+    batch_predict_for_production_evaluation = batch_predict_op( # type: ignore
+        project=project_id,
+        location=REGION,
+        vertex_model=get_prod_model.outputs['production_model'],
+        test_data=data_splits.outputs['test_data'],
+        experiment_name=experiment_name,
+    )
+    batch_predict_for_production_evaluation.set_display_name("Batch Predict (Production)")
+
+    # Model Evaluation (Production Model)
+    production_evaluation_task = model_evaluation_op( # type: ignore
+        project=project_id,
+        location=REGION,
+        predictions=batch_predict_for_production_evaluation.outputs['predictions'],
+        class_labels=data_splits.outputs['class_labels'],
+        vertex_model=get_prod_model.outputs['production_model'], # Associate with production model
+        #model_resource_name=get_prod_model.outputs['production_model'].metadata["resourceName"],
+        cache_trigger11=True
+    )
+    production_evaluation_task.set_display_name("Evaluate Model (Production)")
+
+    # 5. Batch Prediction for Evaluation
+    batch_predict_for_evaluation = batch_predict_op( # type: ignore
+        project=project_id,
+        location=REGION,
+        vertex_model=register_model.outputs['candidate_model'],
+        test_data=data_splits.outputs['test_data'],
+        experiment_name=experiment_name,
+    )
+    batch_predict_for_evaluation.set_display_name("Batch Predict (Candidate)")
+
+    # 6. Model Evaluation (Custom)
+    evaluation_task = model_evaluation_op( # type: ignore
+        project=project_id,
+        location=REGION,
+        predictions=batch_predict_for_evaluation.outputs['predictions'],
+        class_labels=data_splits.outputs['class_labels'],
+        vertex_model=register_model.outputs['candidate_model'],
+        # model_resource_name=register_model.outputs['candidate_model'].metadata["resourceName"],
+        cache_trigger11=True
+    )
+    evaluation_task.set_display_name("Evaluate Model (Candidate)")
+
+     # Calculate F1 scores for comparison
+    calc_f1_scores = calc_f1_scores_op( # type: ignore
         candidate_evaluation_artifact=evaluation_task.outputs['evaluation_metrics'],
-        production_evaluation_artifact=get_prod_model_metrics.outputs['production_evaluation'],
+        production_evaluation_artifact=production_evaluation_task.outputs['evaluation_metrics'], # New input
     )
     calc_f1_scores.set_display_name("Calculate F1 Scores")
 
-    # # 8. Bless Model (Conditional Step)
-    # with dsl.Condition(
-    #     calc_f1_scores.outputs['max_f1_micro_candidate'] > calc_f1_scores.outputs['max_f1_micro_production'],
-    #     name="Bless Model Condition"
-    # ):
-    #     bless_model = bless_model_op(
-    #         vertex_model=register_model.outputs['vertex_model'],
-    #         metrics=evaluation_task.outputs['evaluation_metrics'],
-    #         production_accuracy=calc_f1_scores.outputs['max_f1_micro_production'],
-    #         project=project_id,
-    #         location=REGION,
-    #     )
-    #     bless_model.set_display_name("Bless Model")
+    # 8. Bless Model (Conditional Step)
+    with dsl.Condition(
+        calc_f1_scores.outputs['max_f1_micro_candidate'] > calc_f1_scores.outputs['max_f1_micro_production'],
+        name="Bless Model Condition"
+    ):
+        bless_model = bless_model_op(
+            candidate_model=register_model.outputs['candidate_model'],
+            project=project_id,
+            location=REGION,
+        )
+        bless_model.set_display_name("Bless Model")
 
     
 
