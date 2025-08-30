@@ -175,7 +175,7 @@ def transak_i1_pipeline_train(
         evaluation_candidate=evaluate_model_candidate.outputs['evaluation_metrics'],
         evaluation_production=evaluate_model_production.outputs['evaluation_metrics'], # New input
     )
-    calc_f1_scores.set_display_name("Get Max F1 Scores")
+    calc_f1_scores.set_display_name("Calculate F1 Scores")
 
     # 8. Bless Model (Conditional Step)
     with dsl.Condition(
