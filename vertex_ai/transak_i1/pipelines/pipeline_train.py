@@ -127,59 +127,59 @@ def transak_i1_pipeline_train(
     get_prod_model.set_display_name("Get Production Model")
 
     # Batch Prediction for Evaluation (Production Model)
-    batch_predict_for_production_evaluation = batch_predict_op( # type: ignore
+    batch_predict_production = batch_predict_op( # type: ignore
         project=project_id,
         location=REGION,
         vertex_model=get_prod_model.outputs['production_model'],
         test_data=data_splits.outputs['test_data'],
         experiment_name=experiment_name,
     )
-    batch_predict_for_production_evaluation.set_display_name("Batch Predict (Production)")
+    batch_predict_production.set_display_name("Batch Predict: Production")
 
     # Model Evaluation (Production Model)
-    production_evaluation_task = model_evaluation_op( # type: ignore
+    evaluate_model_production = model_evaluation_op( # type: ignore
         project=project_id,
         location=REGION,
-        predictions=batch_predict_for_production_evaluation.outputs['predictions'],
+        predictions=batch_predict_production.outputs['predictions'],
         class_labels=data_splits.outputs['class_labels'],
         vertex_model=get_prod_model.outputs['production_model'], # Associate with production model
         #model_resource_name=get_prod_model.outputs['production_model'].metadata["resourceName"],
         cache_trigger11=True
     )
-    production_evaluation_task.set_display_name("Evaluate Model (Production)")
+    evaluate_model_production.set_display_name("Evaluate Model: Production")
 
     # 5. Batch Prediction for Evaluation
-    batch_predict_for_evaluation = batch_predict_op( # type: ignore
+    batch_predict_candidate = batch_predict_op( # type: ignore
         project=project_id,
         location=REGION,
         vertex_model=register_model.outputs['candidate_model'],
         test_data=data_splits.outputs['test_data'],
         experiment_name=experiment_name,
     )
-    batch_predict_for_evaluation.set_display_name("Batch Predict (Candidate)")
+    batch_predict_candidate.set_display_name("Batch Predict: Candidate")
 
-    # 6. Model Evaluation (Custom)
-    evaluation_task = model_evaluation_op( # type: ignore
+    # 6. Model Evaluation (Candidate)
+    evaluate_model_candidate = model_evaluation_op( # type: ignore
         project=project_id,
         location=REGION,
-        predictions=batch_predict_for_evaluation.outputs['predictions'],
+        predictions=batch_predict_candidate.outputs['predictions'],
         class_labels=data_splits.outputs['class_labels'],
         vertex_model=register_model.outputs['candidate_model'],
         # model_resource_name=register_model.outputs['candidate_model'].metadata["resourceName"],
         cache_trigger11=True
     )
-    evaluation_task.set_display_name("Evaluate Model (Candidate)")
+    evaluate_model_candidate.set_display_name("Evaluate Model: Candidate")
 
      # Calculate F1 scores for comparison
     calc_f1_scores = calc_f1_scores_op( # type: ignore
-        candidate_evaluation_artifact=evaluation_task.outputs['evaluation_metrics'],
-        production_evaluation_artifact=production_evaluation_task.outputs['evaluation_metrics'], # New input
+        evaluation_candidate=evaluate_model_candidate.outputs['evaluation_metrics'],
+        evaluation_production=evaluate_model_production.outputs['evaluation_metrics'], # New input
     )
-    calc_f1_scores.set_display_name("Calculate F1 Scores")
+    calc_f1_scores.set_display_name("Get Max F1 Scores")
 
     # 8. Bless Model (Conditional Step)
     with dsl.Condition(
-        calc_f1_scores.outputs['max_f1_micro_candidate'] > calc_f1_scores.outputs['max_f1_micro_production'],
+        calc_f1_scores.outputs['max_f1_macro_candidate'] > calc_f1_scores.outputs['max_f1_macro_production'],
         name="Bless Model Condition"
     ):
         bless_model = bless_model_op(
