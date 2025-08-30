@@ -22,6 +22,7 @@ from src.common.base_sql import raw_data_query
 # from google.cloud import bigquery
 from pipelines.components.get_production_model import get_production_model_op # Updated import
 from pipelines.components.calc_f1_scores import calc_f1_scores_op
+from pipelines.components.bless_or_not_to_bless import bless_or_not_to_bless_op
 
 
 # Define Your Pipeline Configuration
@@ -170,18 +171,16 @@ def transak_i1_pipeline_train(
     )
     evaluate_model_candidate.set_display_name("Evaluate Model: Candidate")
 
-    # # Calculate F1 scores for comparison
-    # calc_f1_scores = calc_f1_scores_op( # type: ignore
-    #     evaluation_candidate=evaluate_model_candidate.outputs['evaluation_metrics'],
-    #     evaluation_production=evaluate_model_production.outputs['evaluation_metrics'], # New input
-    # )
-    # calc_f1_scores.set_display_name("Calculate F1 Scores")
-    # calc_f1_scores.set_caching_options(False)
+    # 7. Compare metrics and decide whether to bless
+    to_bless_or_not_to_bless = bless_or_not_to_bless_op(
+        candidate_metrics=evaluate_model_candidate.outputs['evaluation_metrics'],
+        production_metrics=evaluate_model_production.outputs['evaluation_metrics'],
+    )
+    to_bless_or_not_to_bless.set_display_name("Production vs Candidate")
 
     # 8. Bless Model (Conditional Step)
     with dsl.Condition(
-        # calc_f1_scores.outputs['max_f1_macro_candidate'] > calc_f1_scores.outputs['max_f1_macro_production'],
-        evaluate_model_candidate.outputs['evaluation_metrics'].metadata['max_f1_macro'] > evaluate_model_candidate.outputs['evaluation_metrics'].metadata['max_f1_macro'],
+        to_bless_or_not_to_bless.outputs['decision'] == 'bless',
         name="Bless Model Condition"
     ):
         bless_model = bless_model_op(
