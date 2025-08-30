@@ -124,10 +124,17 @@ def data_splits_op(
     val_df.to_csv(val_data.path, index=False)
     test_df.to_csv(test_data.path, index=False)
 
-    # Get and save class labels
-    labels = sorted(train_df['i1_true_label'].unique().tolist())
+    # Create and save a mapping from i1_true_label_id to i1_true_label
+    label_mapping_df = train_df[['i1_true_label_id', 'i1_true_label']].drop_duplicates().sort_values('i1_true_label_id')
+    label_mapping = pd.Series(label_mapping_df.i1_true_label.values, index=label_mapping_df.i1_true_label_id).to_dict()
+
+    # Convert integer keys to strings for JSON compatibility
+    label_mapping_json = {str(k): v for k, v in label_mapping.items()}
+
     with open(class_labels.path, 'w') as f:
-        json.dump(labels, f)
+        json.dump(label_mapping_json, f)
+
+    print("Class Label Mapping (id: label):", label_mapping_json)
 
     # Calculate and attach statistics as metadata
     train_data.metadata = _calculate_dataframe_statistics(train_df, target_column)

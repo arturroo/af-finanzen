@@ -9,6 +9,8 @@ from sklearn.metrics import (
     log_loss,
     confusion_matrix,
     precision_recall_fscore_support,
+    f1_score,
+    accuracy_score
 )
 from google.cloud import aiplatform, storage
 from google.cloud.aiplatform import gapic
@@ -57,7 +59,8 @@ def main():
     parser.add_argument("--target_column", type=str, default='i1_true_label_id', help="Name of the target column in the instance data.")
     parser.add_argument("--project", type=str, required=True, help="Google Cloud project ID.")
     parser.add_argument("--location", type=str, required=True, help="Google Cloud location.")
-    parser.add_argument("--model_resource_path", type=str, required=True, help="Path to the Vertex AI model resource name file.")
+    parser.add_argument("--vertex_model_path", type=str, required=True, help="The Vertex AI model path with model version resource name saved in a file.")
+    # parser.add_argument("--model_resource_name", type=str, required=True, help="The Vertex AI model resource name including version.")
     parser.add_argument("--evaluation_display_name", type=str, required=True, help="Display name for the model evaluation.")
 
 
@@ -66,10 +69,17 @@ def main():
     aiplatform.init(project=args.project, location=args.location)
 
     # Read the model resource name from the input artifact
-    print(f"Reading model resource name from: {args.model_resource_path}")
-    with open(args.model_resource_path, 'r') as f:
-        model_resource_name = f.read().strip()
+    import json
+    from pathlib import Path
+    metadata_file_path = Path(args.vertex_model_path) / "vertex_model_metadata.json"
+    print(f"Reading model resource name from: {metadata_file_path}")
+    with open(metadata_file_path, 'r') as f:
+        model_resource_name = json.load(f)["resourceName"]
     print(f"Retrieved model resource name: {model_resource_name}")
+    
+    # with open(args.model_resource_path, 'r') as f:
+    #     model_resource_name = f.read().strip()
+    # print(f"Retrieved model resource name: {model_resource_name}")
 
     print("Loading predictions and ground truth...")
     predictions_list = _read_gcs_jsonl(args.predictions_uri)
@@ -90,7 +100,7 @@ def main():
     print(f"Found {len(y_true)} records for evaluation.")
 
     print("Loading class labels...")
-    sorted_class_labels = _read_gcs_json(args.class_labels_uri)
+    class_labels = _read_gcs_json(args.class_labels_uri)
 
     # --- Calculate Core Metrics ---
     print("Calculating core metrics...")
@@ -98,97 +108,124 @@ def main():
     au_roc = roc_auc_score(y_true, y_pred_proba, average='micro', multi_class='ovr')
     logloss = log_loss(y_true, y_pred_proba)
 
-    # --- Calculate Confidence Metrics ---
+    # --- Calculate Confidence Metrics (Corrected) ---
     print("Calculating confidence metrics...")
     confidence_metrics = []
-    confidence_thresholds = [i / 100.0 for i in range(0, 100, 5)] + [0.96, 0.97, 0.98, 0.99]
-    num_classes = len(sorted_class_labels)
+
+    # 1. CORRECT: Use all unique probability scores from the model as thresholds.
+    #    We flatten the probability array to get all scores from all classes.
+    all_probabilities = y_pred_proba.ravel() # flatten matrix into long vector later for unique
+    confidence_thresholds = np.unique(np.concatenate(([0.0, 1.0], all_probabilities)))
+    # Sort in descending order to build the curve correctly
+    confidence_thresholds = np.sort(confidence_thresholds)[::-1] # np.sort has no desc switch, and best practice is to present thresholds in desc
+
+    print(f"Generating metrics for {len(confidence_thresholds)} unique thresholds...")
+
+    num_classes = len(class_labels)
+    total_instances = len(y_true)
+    total_possible_negatives = total_instances * (num_classes - 1) # -1 because in multiclass there is always 1 positive and num_classes - 1 negative
+
+    annotation_specs_list = [
+        {"id": label_id, "displayName": label_name}
+        for label_id, label_name in sorted(class_labels.items(), key=lambda item: int(item[0]))
+    ]
 
     for threshold in confidence_thresholds:
-        y_pred_thresholded = np.where(np.max(y_pred_proba, axis=1) >= threshold, y_pred, -1)
-        valid_indices = y_pred_thresholded != -1
+        # Get the predicted class and its probability
+        y_pred_class = np.argmax(y_pred_proba, axis=1)
+        y_pred_max_proba = np.max(y_pred_proba, axis=1)
 
-        if not np.any(valid_indices):
-            confidence_metrics.append({
-                "confidenceThreshold": threshold,
-                "maxPredictions": 2147483647,
-                "recall": 0.0, "precision": 0.0, "falsePositiveRate": 0.0,
-                "f1Score": 0.0, "f1ScoreMicro": 0.0, "f1ScoreMacro": 0.0,
-                "recallAt1": 0.0, "precisionAt1": 0.0, "falsePositiveRateAt1": 0.0, "f1ScoreAt1": 0.0,
-                "truePositiveCount": 0, "falsePositiveCount": 0,
-                "falseNegativeCount": len(y_true), "trueNegativeCount": len(y_true) * (num_classes - 1),
-                "confusionMatrix": {
-                    "annotationSpecs": [{"id": str(i), "displayName": label} for i, label in enumerate(sorted_class_labels)],
-                    "rows": [{"row": [0] * num_classes} for _ in range(num_classes)]
-                }
-            })
-            continue
+        # Filter predictions based on the confidence threshold
+        valid_indices = y_pred_max_proba >= threshold # numpy boolean masking - returns list of booleans
 
-        y_true_filtered = y_true[valid_indices]
-        y_pred_filtered = y_pred_thresholded[valid_indices]
+        y_true_filtered = y_true[valid_indices] # returns numpy with only valueas where mask is True
+        y_pred_filtered = y_pred_class[valid_indices]
 
-        # --- Metric Calculations ---
-        precision_micro, recall_micro, f1_micro, _ = precision_recall_fscore_support(
-            y_true_filtered, y_pred_filtered, average='micro', labels=range(num_classes), zero_division=0
-        )
-        _, _, f1_macro, _ = precision_recall_fscore_support(
-            y_true_filtered, y_pred_filtered, average='macro', labels=range(num_classes), zero_division=0
-        )
+        confusion_matrix_dict = {}
 
-        cm_filtered = confusion_matrix(y_true_filtered, y_pred_filtered, labels=range(num_classes))
+        # --- Metric Calculations for this threshold ---
+        if len(y_true_filtered) == 0:
+            # If no predictions meet the threshold, all are negative predictions.
+            # All probabilities are smaller then the threshold
+            tp_count = 0
+            fp_count = 0
+            fn_count = total_instances # All true instances were missed.
+            tn_count = total_possible_negatives
 
-        # --- Counts ---
-        tp_count = int(np.diag(cm_filtered).sum())
-        fp_count = int(cm_filtered.sum() - tp_count)
-        fn_count = len(y_true) - tp_count
+            precision_micro = 1.0 # Convention: No positive predictions means perfect precision
+            recall_micro = 0.0
+            f1_micro = 0.0
+            f1_macro = 0.0
+            false_positive_rate = 0.0
 
-        tn_per_class = []
-        fp_per_class = []
-        for i in range(num_classes):
-            tp = cm_filtered[i, i]
-            fp = cm_filtered[:, i].sum() - tp
-            fn = cm_filtered[i, :].sum() - tp
-            tn = cm_filtered.sum() - (tp + fp + fn)
-            fp_per_class.append(fp)
-            tn_per_class.append(tn)
+            # Create an all-zero confusion matrix for the empty case
+            zero_matrix = [[0] * num_classes for _ in range(num_classes)]
+            confusion_matrix_dict = {
+                "annotationSpecs": annotation_specs_list,
+                "rows": [{"row": row_values} for row_values in zero_matrix]
+            }
 
-        tn_total = sum(tn_per_class)
-        fp_total = sum(fp_per_class)
-        false_positive_rate = fp_total / (fp_total + tn_total) if (fp_total + tn_total) > 0 else 0.0
+        else:
+            # Calculate confusion matrix on the *filtered* data
+            cm_filtered = confusion_matrix(y_true_filtered, y_pred_filtered, labels=range(num_classes))
 
-        # Since we take the argmax, we are always dealing with 1 prediction, so At1 metrics are the same
+            # Calculate micro-averaged counts
+            tp_count = int(np.diag(cm_filtered).sum())
+            fp_count = int(cm_filtered.sum() - tp_count)
+
+            # 2. CORRECT: FN = All true instances minus the ones we correctly identified.
+            fn_count = total_instances - tp_count
+            tn_count = total_possible_negatives - fp_count
+
+            # Calculate micro-averaged precision and recall
+            precision_micro = tp_count / (tp_count + fp_count) if (tp_count + fp_count) > 0 else 1.0
+            recall_micro = tp_count / (tp_count + fn_count) if (tp_count + fn_count) > 0 else 0.0
+
+            # False Positive Rate
+            false_positive_rate = fp_count / (fp_count + tn_count) if (fp_count + tn_count) > 0 else 0.0
+
+            # F1 scores
+            f1_micro = 2 * (precision_micro * recall_micro) / (precision_micro + recall_micro) if (precision_micro + recall_micro) > 0 else 0.0
+            f1_macro = f1_score(y_true_filtered, y_pred_filtered, average='macro', labels=range(num_classes), zero_division=0)
+
+            # NEW: Format the calculated confusion matrix for the schema
+            # The schema expects a list of dictionaries, where each dict is {"row": [values...]}
+            confusion_matrix_dict = {
+                "annotationSpecs": annotation_specs_list,
+                "rows": [{"row": row_values} for row_values in cm_filtered.tolist()]
+            }
+
         confidence_metrics.append({
-            "confidenceThreshold": threshold,
-            "maxPredictions": 2147483647,
+            "confidenceThreshold": float(threshold),
+            # "maxPredictions": 2147483647,
+            "maxPredictions": 10000,
             "recall": recall_micro,
             "precision": precision_micro,
             "falsePositiveRate": false_positive_rate,
             "f1Score": f1_micro,
             "f1ScoreMicro": f1_micro,
             "f1ScoreMacro": f1_macro,
+            "truePositiveCount": tp_count,
+            "falsePositiveCount": fp_count,
+            "falseNegativeCount": fn_count,
+            "trueNegativeCount": tn_count,
+            # 'At1' metrics are the same for this logic
             "recallAt1": recall_micro,
             "precisionAt1": precision_micro,
             "falsePositiveRateAt1": false_positive_rate,
             "f1ScoreAt1": f1_micro,
-            "truePositiveCount": tp_count,
-            "falsePositiveCount": fp_count,
-            "falseNegativeCount": fn_count,
-            "trueNegativeCount": int(tn_total)
-            # "confusionMatrix": {
-            #     "annotationSpecs": [{"id": str(i), "displayName": label} for i, label in enumerate(sorted_class_labels)],
-            #     "rows": [{"row": row} for row in cm_filtered.tolist()]
-            # }
+            # "confusionMatrix": confusion_matrix_dict
         })
 
     # --- Calculate Overall Confusion Matrix ---
     print("Calculating overall confusion matrix...")
-    overall_cm = confusion_matrix(y_true, y_pred, labels=range(len(sorted_class_labels)))
-    cm_rows_list = overall_cm.tolist()
-    cm_rows = [{"row": row} for row in cm_rows_list]
+    overall_cm = confusion_matrix(y_true, y_pred, labels=range(len(class_labels)))
+    #cm_rows_list = overall_cm.tolist()
+    #cm_rows = [{"row": row} for row in cm_rows_list]
 
     confusion_matrix_output = {
-        "annotationSpecs": [{ "id": str(i), "displayName": label} for i, label in enumerate(sorted_class_labels)],
-        "rows": cm_rows,
+        "annotationSpecs": annotation_specs_list,
+        "rows": overall_cm.tolist(),
     }
 
     # --- Construct Final Evaluation Metrics Dictionary ---
@@ -197,6 +234,7 @@ def main():
         "auRoc": au_roc,
         "logLoss": logloss,
         "confidenceMetrics": confidence_metrics,
+        # I do not know which format should be applied here. 
         # "confusionMatrix": confusion_matrix_output,
     }
 
@@ -214,25 +252,26 @@ def main():
     
     # Define the schema URI for classification metrics
     METRICS_SCHEMA_URI = "gs://google-cloud-aiplatform/schema/modelevaluation/classification_metrics_1.0.0.yaml"
-
+    
     # Create the ModelEvaluation object
     model_evaluation = gapic.ModelEvaluation(
         display_name=args.evaluation_display_name,
         metrics_schema_uri=METRICS_SCHEMA_URI,
         metrics=evaluation_metrics,
     )
-
+    
     # Initialize the ModelServiceClient
     API_ENDPOINT = f"{args.location}-aiplatform.googleapis.com"
     client_options = {"api_endpoint": API_ENDPOINT}
     client = gapic.ModelServiceClient(client_options=client_options)
-
+    
     # Create the import request
+    print(f"Importing model evaluation into: {model_resource_name}")
     request = gapic.ImportModelEvaluationRequest(
         parent=model_resource_name,
         model_evaluation=model_evaluation,
     )
-
+    
     # Import the evaluation
     response = client.import_model_evaluation(request=request)
     print(f"Successfully imported model evaluation: {response.name}")

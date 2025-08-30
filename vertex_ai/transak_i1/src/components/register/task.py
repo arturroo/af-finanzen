@@ -12,6 +12,7 @@ def _parse_args():
     parser.add_argument('--project-id', required=True, type=str, help='GCP Project ID.')
     parser.add_argument('--region', required=True, type=str, help='GCP Region for Vertex AI resources.')
     parser.add_argument('--experiment-name', required=True, type=str, help='Name of the experiment for tracking.')
+    parser.add_argument('--vertex-model2-path', required=True, type=str, help='Local path to write the Vertex AI Model metadata')
     return parser.parse_args()
 
 def main():
@@ -46,11 +47,33 @@ def main():
         sync=True # Waits for the upload to complete
     )
     print(f"Model uploaded to registry: {vertex_model.resource_name}")
+    print(f"Model uploaded to registry version_id: {vertex_model.version_id}")
 
     # Write the Vertex Model resource name to the specified path
     os.makedirs(os.path.dirname(args.vertex_model_path), exist_ok=True)
     with open(args.vertex_model_path, 'w') as f:
         f.write(vertex_model.resource_name)
+
+    # Write the Vertex Model metadata for the artifact
+    # os.makedirs(os.path.dirname(args.vertex_model_version_path), exist_ok=True)
+    vertex_model_metadata = {
+        "uri": vertex_model.uri,
+        "metadata": {
+            # "display_name": vertex_model.display_name,
+            # "description": vertex_model.description,
+            # "version_id": vertex_model.version_id,
+            # "parent_model": vertex_model.parent_model,
+            # "create_time": vertex_model.create_time,
+            "resourceName": f"{vertex_model.resource_name}@{vertex_model.version_id}"
+        }
+    }
+    vertex_model_metadata = { "resourceName": f"{vertex_model.resource_name}@{vertex_model.version_id}" }
+    import json
+    with open(args.vertex_model2_path, 'w') as f:
+        json.dump(vertex_model_metadata, f)
+
+    return vertex_model.uri, vertex_model.resource_name
+
 
 if __name__ == '__main__':
     main()
