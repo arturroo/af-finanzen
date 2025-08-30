@@ -1,10 +1,11 @@
 from kfp.dsl import component, Input
 from google_cloud_pipeline_components.types.artifact_types import ClassificationMetrics
 from typing import NamedTuple
+import json
 
 @component(
     base_image="python:3.9",
-    packages_to_install=["google-cloud-storage", "google-cloud-pipeline-components"],
+    packages_to_install=["google-cloud-pipeline-components"],
 )
 def calc_f1_scores_op(
     evaluation_candidate: Input[ClassificationMetrics],
@@ -14,51 +15,46 @@ def calc_f1_scores_op(
     ("max_f1_macro_production", float),
 ]):
     """
-    A component that calculates the maximum F1-macro score for both
-    candidate and production model evaluations and returns them.
+    Calculates the maximum F1-macro score from evaluation metrics.
+    It reads the metrics from the local path of the input artifacts.
     """
-    import json
-    from google.cloud import storage
-
-    def _get_max_f1_macro(artifact_uri: str) -> float:
-        if not artifact_uri or artifact_uri == "gcs://dummy/uri":
-            print(f"Warning: Artifact URI is empty or dummy: {artifact_uri}. Returning 0.0.")
-            return 0.0
-
-        print(f"Reading artifact from: {artifact_uri}")
-        client = storage.Client()
-        path_parts = artifact_uri.replace("gs://", "").split("/", 1)
-        bucket_name = path_parts[0]
-        blob_name = path_parts[1]
-
-        bucket = client.bucket(bucket_name)
-        blob = bucket.blob(blob_name)
-        
+    def _get_max_f1_macro(artifact_path: str) -> float:
+        print(f"Reading artifact from local path: {artifact_path}")
         try:
-            content = blob.download_as_text()
-            evaluation_data = json.loads(content)
+            with open(artifact_path, 'r') as f:
+                evaluation_data = json.load(f)
         except Exception as e:
-            print(f"Error downloading or parsing evaluation data from {artifact_uri}: {e}")
+            print(f"Error reading or parsing evaluation data from {artifact_path}: {e}")
             return 0.0
+
+        print(f"Evaluation data keys: {list(evaluation_data.keys())}")
 
         max_f1 = 0.0
-        if 'metrics' in evaluation_data and 'confidenceMetrics' in evaluation_data['metrics']:
-            for metric in evaluation_data['metrics']['confidenceMetrics']:
-                if 'f1ScoreMacro' in metric:
+        if 'confidenceMetrics' in evaluation_data:
+            for metric in evaluation_data['confidenceMetrics']:
+                if 'f1ScoreMacro' in metric and metric['f1ScoreMacro'] is not None:
                     f1_score = metric['f1ScoreMacro']
                     if f1_score > max_f1:
                         max_f1 = f1_score
         else:
-            print(f"'metrics' or 'confidenceMetrics' not found in evaluation data from {artifact_uri}")
+            print(f"Warning: 'confidenceMetrics' key not found in evaluation data from {artifact_path}")
+
+        if max_f1 == 0.0:
+            print("Warning: Could not find a valid f1ScoreMacro, returning 0.0")
 
         return max_f1
 
-    # Calculate for candidate model
-    candidate_f1 = _get_max_f1_macro(evaluation_candidate.uri)
-    print(f"Candidate max_f1_macro: {candidate_f1}")
+    # --- Main execution ---
+    # Handle the case where production model might not exist on first run
+    if evaluation_production.uri == "gcs://dummy/uri":
+        print("Production model evaluation is a dummy, skipping calculation.")
+        production_f1 = 0.0
+    else:
+        production_f1 = _get_max_f1_macro(evaluation_production.path)
 
-    # Calculate for production model
-    production_f1 = _get_max_f1_macro(evaluation_production.uri)
+    candidate_f1 = _get_max_f1_macro(evaluation_candidate.path)
+
+    print(f"Candidate max_f1_macro: {candidate_f1}")
     print(f"Production max_f1_macro: {production_f1}")
 
     return (candidate_f1, production_f1)
