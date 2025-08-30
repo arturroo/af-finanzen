@@ -143,8 +143,8 @@ def transak_i1_pipeline_train(
         predictions=batch_predict_production.outputs['predictions'],
         class_labels=data_splits.outputs['class_labels'],
         vertex_model=get_prod_model.outputs['production_model'], # Associate with production model
-        #model_resource_name=get_prod_model.outputs['production_model'].metadata["resourceName"],
-        cache_trigger11=True
+        evaluation_display_name=f"{run_name}-production-evaluation"
+        # cache_trigger11=True
     )
     evaluate_model_production.set_display_name("Evaluate Model: Production")
 
@@ -165,21 +165,23 @@ def transak_i1_pipeline_train(
         predictions=batch_predict_candidate.outputs['predictions'],
         class_labels=data_splits.outputs['class_labels'],
         vertex_model=register_model.outputs['candidate_model'],
-        # model_resource_name=register_model.outputs['candidate_model'].metadata["resourceName"],
-        cache_trigger11=True
+        evaluation_display_name=f"{run_name}-candidate-evaluation"
+        # cache_trigger11=True
     )
     evaluate_model_candidate.set_display_name("Evaluate Model: Candidate")
 
-     # Calculate F1 scores for comparison
-    calc_f1_scores = calc_f1_scores_op( # type: ignore
-        evaluation_candidate=evaluate_model_candidate.outputs['evaluation_metrics'],
-        evaluation_production=evaluate_model_production.outputs['evaluation_metrics'], # New input
-    )
-    calc_f1_scores.set_display_name("Calculate F1 Scores")
+    # # Calculate F1 scores for comparison
+    # calc_f1_scores = calc_f1_scores_op( # type: ignore
+    #     evaluation_candidate=evaluate_model_candidate.outputs['evaluation_metrics'],
+    #     evaluation_production=evaluate_model_production.outputs['evaluation_metrics'], # New input
+    # )
+    # calc_f1_scores.set_display_name("Calculate F1 Scores")
+    # calc_f1_scores.set_caching_options(False)
 
     # 8. Bless Model (Conditional Step)
     with dsl.Condition(
-        calc_f1_scores.outputs['max_f1_macro_candidate'] > calc_f1_scores.outputs['max_f1_macro_production'],
+        # calc_f1_scores.outputs['max_f1_macro_candidate'] > calc_f1_scores.outputs['max_f1_macro_production'],
+        evaluate_model_candidate.outputs['evaluation_metrics'].metadata['max_f1_macro'] > evaluate_model_candidate.outputs['evaluation_metrics'].metadata['max_f1_macro'],
         name="Bless Model Condition"
     ):
         bless_model = bless_model_op(
