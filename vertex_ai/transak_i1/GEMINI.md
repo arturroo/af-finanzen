@@ -19,7 +19,7 @@ The entire system is orchestrated by **Vertex AI Pipelines**, with each step run
 
 ## 1. Pipeline Train: The Training & Promotion Pipeline
 
-**Goal:** To train a new model, evaluate it against the current production model, and if it proves superior, "bless" it by promoting it to become the new production champion.
+**Goal:** To train a new "challenger" (candidate) model, evaluate it against the current "champion" (production) model, and if it proves superior, "bless" it by promoting it to become the new production champion.
 
 **Trigger:** Can be run manually or automatically by the monitoring pipeline when data drift is detected.
 
@@ -44,19 +44,31 @@ The entire system is orchestrated by **Vertex AI Pipelines**, with each step run
     * **Action:** Trains our custom Wide & Deep Keras model on the `train` and `val` datasets, logging all metrics in real-time to **Vertex AI TensorBoard**. The `tid` column is dropped from the dataframes before being fed to the model.
     * **Output:** A trained `Model` artifact in the TensorFlow SavedModel format.
 
-5.  **`batch_predict`** (using same method as `BatchPredictionJobOp` (predictions from model signature) but in custom container)
-    *   **Input:** The trained `Model` artifact from `train_model_op` and the `test` `Dataset` artifact from `data_splits_op`.
-    *   **Action:** Triggers a Vertex AI Batch Prediction Job using the newly trained model and the `test` dataset. The predictions are saved to a GCS location.
-    *   **Output:** GCS URI of the batch predictions.
+5.  **`register_model_op`**
+    *   **Input:** The trained `Model` artifact from `train_model_op`.
+    *   **Action:** Registers the newly trained model to the **Vertex AI Model Registry**. This version is now our `challenger` model.
+    *   **Output:** A `candidate_model` artifact.
 
-6.  **`model_evaluation_op`** (using same method as `ModelEvaluationOp` (model statistics from TFMA) but in custom container)
-    *   **Input:** The trained `Model` artifact from `train_model_op`, the `test` `Dataset` artifact from `data_splits_op`, and the batch predictions from `batch_predict`.
-    *   **Action:** It takes the `test` dataset (as ground truth), and the batch predictions in format proper for ModelEvaluationClassificationOp (gs://.../predictions/prediction-results-00000-of-00001). It automatically calculates a same set of classification metrics as ModelEvaluationClassificationOp and generates interactive visualizations (like a **confusion matrix** and **ROC curve**) directly in the Vertex AI UI for later upload those metrics alongside to the registered model. Here is used custom evaluation, because there was a day invested in running Pre-built Google Cloud Pipeline Component ModelEvaluationClassificationOp without success.
-    *   **Output:** Google evaluation metrics and visualizations.
+6.  **`get_production_model_op`**
+    *   **Action:** Fetches the model currently aliased as `production` from the Model Registry. This is our `champion` model.
+    *   **Output:** A `production_model` artifact.
 
-7.  **`bless_model_op` (Conditional Step)**
-    *   **Action:** This is our final quality gate, implemented as a `dsl.Condition`. It runs **only if** the new `candidate` model's accuracy is greater than currently blessed model (Continuous Improvement).
-    * If the condition is met, this component uses the Vertex AI SDK to **update the model's aliases** in the Model Registry. It removes the `production` alias from the old model version and assigns it to our new, superior `candidate` version. The new model is now officially "blessed".
+7.  **`batch_predict_op` (Champion vs. Challenger)**
+    *   **Action:** Triggers two parallel Vertex AI Batch Prediction Jobs on the `test` dataset: one for the `challenger` (candidate) and one for the `champion` (production).
+    *   **Output:** Prediction results for both models.
+
+8.  **`model_evaluation_op` (Champion vs. Challenger)**
+    *   **Action:** Runs two parallel evaluation jobs on the prediction results from the prior step to calculate performance metrics for both the `champion` and `challenger` models.
+    *   **Output:** Evaluation metrics for both models.
+
+9.  **`bless_or_not_to_bless_op`**
+    *   **Input:** Evaluation metrics from the `champion` and `challenger` models.
+    *   **Action:** Compares the performance metrics of the two models.
+    *   **Output:** A decision string: "bless" or "don't bless".
+
+10. **`bless_model_op` (Conditional Step)**
+    *   **Action:** This is the final quality gate, implemented as a `dsl.Condition` that runs **only if** the output from the `bless_or_not_to_bless_op` is "bless".
+    * If the condition is met, this component uses the Vertex AI SDK to **update the model's aliases** in the Model Registry. It removes the `production` alias from the old model version and assigns it to our new, superior `challenger` version. The new model is now officially "blessed".
 
 ---
 

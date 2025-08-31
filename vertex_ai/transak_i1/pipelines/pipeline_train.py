@@ -3,7 +3,6 @@ import sys
 import time
 from kfp import dsl,compiler
 from google.cloud import aiplatform
-# from pipelines.components.data_prep import data_prep_op
 from pipelines.components.data_splits import data_splits_op
 from pipelines.components.trainer import train_model_op
 from pipelines.components.register import register_model_op
@@ -11,17 +10,10 @@ from pipelines.components.bq_config_generator import bq_config_generator_op
 from pipelines.components.bless_model import bless_model_op
 from pipelines.components.evaluation import model_evaluation_op
 from pipelines.components.get_production_model import get_production_model_op
-from pipelines.components.utils import get_artifact_uri_list, read_json_labels_op
-#from pipelines.components.batch_predict import batch_predict_op
 from pipelines.components.batch_predict import batch_predict_op
 from google_cloud_pipeline_components.v1.bigquery import BigqueryQueryJobOp
-from google_cloud_pipeline_components.v1.model_evaluation import ModelEvaluationClassificationOp
-from google_cloud_pipeline_components.preview.model_evaluation import ModelImportEvaluationOp
-# from google_cloud_pipeline_components.v1.batch_predict_job import ModelBatchPredictOp
 from src.common.base_sql import raw_data_query
-# from google.cloud import bigquery
-from pipelines.components.get_production_model import get_production_model_op # Updated import
-from pipelines.components.calc_f1_scores import calc_f1_scores_op
+from pipelines.components.get_production_model import get_production_model_op
 from pipelines.components.bless_or_not_to_bless import bless_or_not_to_bless_op
 
 
@@ -110,6 +102,7 @@ def transak_i1_pipeline_train(
     # 4. Model Registration
     register_model = register_model_op( # type: ignore
         model=train_model.outputs['output_model'],
+        training_data=data_splits.outputs['train_data'],
         model_display_name=f"{PIPELINE_NAME}-model",
         serving_container_image_uri=serving_container_image_uri,
         project_id=project_id,
@@ -243,7 +236,7 @@ if __name__ == "__main__":
                     "run_name": run_name,
                     "target_column": "i1_true_label_id",
                 },
-                #enable_caching=False  # Disable caching to ensure all new code runs
+                # enable_caching=False  # Disable caching to ensure all new code runs
                 enable_caching=True  # Enable caching to skip already executed steps
             )
 

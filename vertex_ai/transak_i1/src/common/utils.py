@@ -40,7 +40,7 @@ def df2dataset(df: pd.DataFrame, shuffle=True, batch_size=32, mode: str = 'train
         raise ValueError(f"Invalid mode: {mode}. Choose 'train' or 'inference'.")
 
     # Add the missing dimension to each feature tensor
-    # This is necessary for the model to accept the input shape correctly.
+    # This is necessary for the model to accept the input shape correctly (Keras don't care at trein, TF serving cares)
     def reshape_features(features, *label):
         for key in features.keys():
             # Reshape each scalar feature tensor to have a shape of [1]

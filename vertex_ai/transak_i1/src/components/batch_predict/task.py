@@ -12,7 +12,6 @@ def main():
     parser = argparse.ArgumentParser(description="Perform batch predictions using a trained TensorFlow model.")
     parser.add_argument("--project", type=str, required=True, help="Google Cloud project ID.")
     parser.add_argument("--location", type=str, required=True, help="Google Cloud region.")
-    #parser.add_argument("--vertex-model-path", type=str, required=True, help="Path to the VertexModel artifact.")
     parser.add_argument("--vertex-model-uri", type=str, required=True, help="URI to the model registered in Vertex AI Model Registry.")
     parser.add_argument("--test-data-uri", type=str, required=True, help="URI of the test data.")
     parser.add_argument("--predictions-path", type=str, required=True, help="Path to save the predictions.")
@@ -23,19 +22,7 @@ def main():
     print(f"Initializing AI Platform for project {args.project} in {args.location}...")
     aiplatform.init(project=args.project, location=args.location, experiment=args.experiment_name)
 
-    # # 1. Read the model resource name from the input artifact
-    # print(f"Reading model resource name from: {args.vertex_model_path}")
-    # with open(args.vertex_model_path, 'r') as f:
-    #     model_resource_name = f.read().strip()
-    # print(f"Retrieved model resource name: {model_resource_name}")
-    # 
-    # # 2. Get the model artifact URI from the Model Registry
-    # model_registry_object = aiplatform.Model(model_name=model_resource_name)
-    # model_artifact_uri = model_registry_object.uri
-    # print(f"Loading model from artifact URI: {model_artifact_uri}")
-    # 
     # 3. Load the TensorFlow model
-    # loaded_model = tf.saved_model.load(model_artifact_uri)
     loaded_model = tf.saved_model.load(args.vertex_model_uri)
     print("Model loaded successfully.")
     print(dir(loaded_model))
@@ -52,11 +39,8 @@ def main():
 
     # 5. Run predictions using the 'serving_default' signature
     print("Running predictions using 'serving_default' signature...")
-    # This is reallye oneliner, but I need to understand this so I do prediction step by step
-    #predictions_tensor = loaded_model.signatures['serving_default'](prediction_dataset)
+    # This is really a oneliner, but I need to understand this so I do prediction step by step
     predict_fn = loaded_model.signatures['serving_default']
-    # predict_fn(image_tensor=t1, metadata_tensor=t2)
-    # predictions_tensor = predict_fn(prediction_dataset) # Commented out: Old prediction call
     all_predictions = []
     for batch in prediction_dataset:
         predictions_tensor = predict_fn(
@@ -83,17 +67,12 @@ def main():
     # We will create a file inside this directory with the required prefix.
     output_file_name = 'prediction.results-00000-of-00001' # Adhering to Vertex AI evaluation component requirements
     output_file_path = os.path.join(args.predictions_path, output_file_name)
-    os.makedirs(args.predictions_path, exist_ok=True) # Ensure the directory exists
+    os.makedirs(args.predictions_path, exist_ok=True)
 
     print(f"Writing predictions to: {output_file_path}")
 
-    # not needed in custom evaluation # Get the feature columns in the correct order, excluding any potential label columns
-    # not needed in custom evaluation feature_cols = [col for col in test_df.columns if col not in ['tid', 'i1_true_label', 'i1_true_label_id']]
-
     with open(output_file_path, 'w') as f:
         for instance, pred in zip(instances, all_predictions):
-            # not needed in custom evaluation # Create the instance payload as a list of values in the correct feature order
-            # not needed in custom evaluation instance_values = [instance[col] for col in feature_cols]
             json_record = json.dumps({
                 # "instance": instance_values,
                 "instance": instance,

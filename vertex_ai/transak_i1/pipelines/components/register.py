@@ -1,4 +1,4 @@
-from kfp.dsl import component, Output, Input, Model
+from kfp.dsl import component, Output, Input, Model, Dataset
 from google_cloud_pipeline_components.types.artifact_types import VertexModel
 from google.cloud import aiplatform
 
@@ -9,6 +9,7 @@ from google.cloud import aiplatform
 def register_model_op(
     # --- Component Inputs ---
     model: Input[Model],
+    training_data: Input[Dataset],
     candidate_model: Output[VertexModel],
     model_display_name: str,
     serving_container_image_uri: str,
@@ -35,6 +36,8 @@ def register_model_op(
     else:
         print("No parent model found. A new model entry will be created.")
 
+    description = "Wide & Deep transaction classifier trained via a Vertex AI Pipeline."
+
     # Upload the model to Vertex AI Model Registry
     print(f"Uploading model to Vertex AI Model Registry: {model_display_name}")
     vertex_model = aiplatform.Model.upload(
@@ -42,7 +45,7 @@ def register_model_op(
         parent_model=parent_model_resource_name,
         artifact_uri=model.uri,
         serving_container_image_uri=serving_container_image_uri,
-        description="Wide & Deep transaction classifier trained via a Vertex AI Pipeline.",
+        description=description,
         sync=True # Waits for the upload to complete
     )
     print(f"Model uploaded to registry resource_name: {vertex_model.resource_name}")
