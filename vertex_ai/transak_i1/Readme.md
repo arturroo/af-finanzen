@@ -11,7 +11,7 @@ This project demonstrates a professional, end-to-end MLOps pipeline for classify
 
 The final pipeline consists of four containerized components that automate the entire process from data ingestion to conditional model registration.
 
-![Final Pipeline Graph](media/Screenshot_2025-08-04_013613.png)
+![Final Pipeline Train Graph](media/Screenshot_2025-08-31_235655.png)
 
 ---
 
