@@ -32,7 +32,7 @@ PREDICTIONS_TABLE = "predictions"
     "to get predictions from the transaction classifier.",
     pipeline_root=PIPELINE_ROOT, # type: ignore
 )
-def transaction_classifier_predict_pipeline(
+def transak_i1_pipeline_predict(
     project_id: str = PROJECT_ID, # type: ignore
     model_name: str = "transak-i1-train-model",
     experiment_name: str = EXPERIMENT_NAME, # type: ignore
