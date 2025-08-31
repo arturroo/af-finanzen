@@ -9,7 +9,6 @@ from google.cloud import aiplatform
 def register_model_op(
     # --- Component Inputs ---
     model: Input[Model],
-    training_data: Input[Dataset],
     candidate_model: Output[VertexModel],
     model_display_name: str,
     serving_container_image_uri: str,

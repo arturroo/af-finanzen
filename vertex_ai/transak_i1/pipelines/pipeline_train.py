@@ -102,7 +102,6 @@ def transak_i1_pipeline_train(
     # 4. Model Registration
     register_model = register_model_op( # type: ignore
         model=train_model.outputs['output_model'],
-        training_data=data_splits.outputs['train_data'],
         model_display_name=f"{PIPELINE_NAME}-model",
         serving_container_image_uri=serving_container_image_uri,
         project_id=project_id,
