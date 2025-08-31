@@ -1,6 +1,6 @@
-# From Notebook to Production: Key Lessons on Vertex AI Pipelines and KFP Artifacts
+# Zero-Touch ML Model Promotion: Building a Fully Automated Champion-Challenger Pipeline on GCP Vertex AI - Key Lessons. 
 
-Moving a machine learning model from a research notebook to a fully automated production pipeline can be a daunting task. In this post, I'll share key insights from building an end-to-end MLOps system on Google Cloud's Vertex AI to classify financial transactions. The secret to success wasn't just about the model, but about deeply understanding how Kubeflow Pipelines (KFP) passes data—or "artifacts"—between steps.
+Moving a machine learning model from a research notebook to a fully automated production pipeline can be a daunting task. In this post, I'll share key insights from building an end-to-end MLOps system on Google Cloud's Vertex AI Pipelines to classify my financial transactions. The secret to success wasn't just about the model, but about deeply understanding how Kubeflow Pipelines (KFP) passes data—or "artifacts"—between steps.
 
 ### Our Champion vs. Challenger Pipeline Architecture
 
@@ -34,20 +34,21 @@ This elegant mechanism allows you to seamlessly connect containerized steps. It'
 
 With a **folder-based artifact**, you can easily add metadata by simply writing a JSON file inside the artifact's output directory with the name that not corresponds with any artifacts file name. This is great because it allows you to pass rich, structured data to downstream components.
 Like here saving registered model resource name to make it available for downstream components.
-    # Save the resource name to a file within the artifact directory for downstream components
+``` 
     metadata_file_path = Path(candidate_model.path) / "vertex_model_metadata.json"
     with open(metadata_file_path, 'w') as f:
         json.dump({"resourceName": full_resource_name}, f)
     print(f"Saved model metadata with resource name to {metadata_file_path}")
-
+```
 However, with a **single-file artifact**, you can't add metadata this way. The container's script must produce a single file that conforms to the artifact's type. The component definition itself has no direct access to what the container returns; to get a simple value out, you have to treat it as the return value of the entire component function, which isn't always ideal. This is why using folder-based artifacts is often a more flexible and powerful approach when you need to pass more than just a single file's content. Artifacts that are files are better to use with metadata as lightweight components like my evaluation metrics here:
+```
     print(f"Saving evaluation metrics to {evaluation_metrics.path}")
     with open(evaluation_metrics.path, 'w') as f:
         json.dump(final_evaluation_metrics, f, indent=4)
 
     print(f"Adding metadata to artifact: max_f1_macro = {max_f1_macro}")
     evaluation_metrics.metadata["max_f1_macro"] = max_f1_macro
-
+```
 ### The Rules of the Road: Artifact Immutability
 
 KFP enforces some important rules about how you can interact with artifacts:
