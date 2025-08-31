@@ -184,9 +184,9 @@ def transak_i1_pipeline_train(
         name="Bless Model Condition"
     ):
         bless_model = bless_model_op(
-            candidate_model=register_model.outputs['candidate_model'],
+            vertex_model=register_model.outputs['candidate_model'],
             project=project_id,
-            location=REGION,
+            location=REGION
         )
         bless_model.set_display_name("Bless Model")
 
