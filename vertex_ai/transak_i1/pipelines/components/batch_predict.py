@@ -24,7 +24,6 @@ def batch_predict_op(
             "-m", "src.components.batch_predict.task",
             "--project", project,
             "--location", location,
-            #"--vertex-model-path", vertex_model.path,
             "--vertex-model-uri", vertex_model.uri,
             "--test-data-uri", test_data.uri,
             "--predictions-path", predictions.path,

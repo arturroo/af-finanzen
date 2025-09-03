@@ -24,7 +24,21 @@ def get_production_model_op(
     # models_with_display_name = aiplatform.Model.list(filter=f'display_name="{model_display_name}"')
     # model_versions = aiplatform.Model.listVersions(name=model_display_name)
     # model_registry = aiplatform.models.ModelRegistry(model=model_id)
-    production_model_version = aiplatform.Model(model_name="projects/819397114258/locations/europe-west6/models/5048491201817214976", version="production")
+        # Look for an existing model with the same display name to set as parent
+    print(f"Searching for parent model with display name: {model_display_name}")
+    model_resource_name = None
+    models = aiplatform.Model.list(
+        filter=f'display_name="{model_display_name}"',
+        project=project,
+        location=location,
+    )
+    if models:
+        model_resource_name = models[0].resource_name
+        print(f"Found model: {model_resource_name}")
+    else:
+        print("No parent model found. A new model entry will be created.")
+
+    production_model_version = aiplatform.Model(model_name=model_resource_name, version="production")
 
 
     if not production_model_version:

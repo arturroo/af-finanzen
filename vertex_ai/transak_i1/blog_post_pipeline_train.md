@@ -32,7 +32,7 @@ Here's the workflow I used:
 
 This elegant mechanism allows you to seamlessly connect containerized steps. It's important to remember that an artifact can be a **directory with multiple files** (like a TensorFlow SavedModel) or just a **single file** (like a json file with evaluation metrics). This distinction becomes critical when handling outputs and metadata.
 
-With a **folder-based artifact**, you can easily add metadata by simply writing a JSON file inside the artifact's output directory with the name that not corresponds with any artifacts file name. This is great because it allows you to pass rich, structured data to downstream components.
+With a **folder-based artifact**, you can easily pass extra information by writing an additional file, like `metadata.json`, directly into the artifact's output directory. This is great because it allows you to pass rich, structured data to downstream components.
 Like here saving registered model resource name to make it available for downstream components.
 ``` 
     metadata_file_path = Path(candidate_model.path) / "vertex_model_metadata.json"
