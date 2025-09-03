@@ -20,7 +20,10 @@ def main():
     args = parser.parse_args()
 
     print(f"Initializing AI Platform for project {args.project} in {args.location}...")
-    aiplatform.init(project=args.project, location=args.location, experiment=args.experiment_name)
+    if args.experiment_name == "":
+        aiplatform.init(project=args.project, location=args.location)
+    else:
+        aiplatform.init(project=args.project, location=args.location, experiment=args.experiment_name)
 
     # 3. Load the TensorFlow model
     loaded_model = tf.saved_model.load(args.vertex_model_uri)

@@ -12,7 +12,7 @@ from pipelines.components.evaluation import model_evaluation_op
 from pipelines.components.get_production_model import get_production_model_op
 from pipelines.components.batch_predict import batch_predict_op
 from google_cloud_pipeline_components.v1.bigquery import BigqueryQueryJobOp
-from src.common.base_sql import raw_data_query
+from src.common.base_sql import train_data_query
 from pipelines.components.get_production_model import get_production_model_op
 from pipelines.components.bless_or_not_to_bless import bless_or_not_to_bless_op
 
@@ -64,15 +64,6 @@ def transak_i1_pipeline_train(
         table_name_prefix="golden_data"
     )
     bq_config_generator.set_display_name("Generate BQ Config")
-
-    # 2. Get Golden Data
-    golden_data = BigqueryQueryJobOp(
-        project=project_id,
-        location=REGION,
-        query=raw_data_query(),
-        job_configuration_query=bq_config_generator.output
-    )
-    golden_data.set_display_name("Create Golden Data")
 
     # 2. Train, val, test split
     data_splits = data_splits_op( # type: ignore
