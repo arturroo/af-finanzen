@@ -80,19 +80,31 @@ The entire system is orchestrated by **Vertex AI Pipelines**, with each step run
 
 ### Component Workflow:
 
-1.  **`get_prediction_data_op`**
-    * **Action:** Queries BigQuery for only the most recent data (e.g., last 30 days).
-    * **Output:** A `prediction_input.csv` artifact.
+1.  **`prediction_config_generator_op`**
+    * **Action:** Generates the prediction month string (e.g., '202508') based on the input month or the current date.
+    * **Output:** A string with the prediction month.
 
-2.  **`batch_predict_op`**
-    * **Action:** This component fetches the model currently aliased as **`production`** from the Model Registry. It then triggers a **Vertex AI Batch Prediction Job** using this model and the new prediction data.
-    * **Output:** Saves predictions to a result table in BigQuery.
+2.  **`get_prediction_data_op`**
+    * **Action:** Queries BigQuery for only the most recent data for a specific month.
+    * **Output:** A `prediction_data` artifact (CSV).
 
-3.  **`monitoring_op`**
-    * **Action:** Triggers a **Vertex AI Model Monitoring** job, comparing the statistics of the prediction data against the original training data to detect feature drift and training-serving skew (continuous evaluation).
+3.  **`get_production_model_op`**
+    *   **Action:** Fetches the model currently aliased as `production` from the Model Registry.
+    *   **Output:** A `production_model` artifact.
 
-4.  **`trigger_retraining_op` (Conditional Step)**
-    * **Action:** A `dsl.Condition` that checks `if drift_detected`.
+4.  **`batch_predict_op`**
+    * **Action:** This component triggers a **Vertex AI Batch Prediction Job** using the production model and the new prediction data.
+    * **Output:** Prediction results.
+
+5.  **`save_predictions_op`**
+    * **Action:** Saves the predictions to a BigQuery table named `i1_predictions`.
+    * **Output:** A BigQuery table with the predictions.
+
+6.  **`monitoring_op`**
+    * **Action:** **TODO:** Not yet implemented. This step will trigger a **Vertex AI Model Monitoring** job, comparing the statistics of the prediction data against the original training data to detect feature drift and training-serving skew (continuous evaluation).
+
+7.  **`trigger_retraining_op` (Conditional Step)**
+    * **Action:** **TODO:** Not yet implemented. A `dsl.Condition` that checks `if drift_detected`.
     * If true, this component makes an API call to **trigger a new run of our Training & Promotion Pipeline**, creating a fully automated, closed-loop MLOps system.
 
 ---
