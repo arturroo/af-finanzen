@@ -152,7 +152,7 @@ if __name__ == "__main__":
             display_name=PIPELINE_JOB_NAME,
             template_path=package_path,
             parameter_values=parameter_values,
-            enable_caching=True # Disable caching to ensure all new code runs
+            enable_caching=False # Disable caching to ensure all new code runs
         )
 
         print(f"Submitting pipeline job '{PIPELINE_NAME}' to Vertex AI...")
