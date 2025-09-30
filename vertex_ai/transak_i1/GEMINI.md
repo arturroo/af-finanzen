@@ -127,3 +127,18 @@ The entire system is orchestrated by **Vertex AI Pipelines**, with each step run
                                +----------------------------------+
 
 ```
+
+---
+## TODOs / Future Work
+
+- **Automate Infrastructure & Triggers:**
+  - [ ] Define Vertex AI Pipeline jobs and their schedules using Terraform.
+  - [ ] Implement a Cloud Function to automatically trigger the prediction pipeline when new data arrives in Cloud Storage.
+
+- **Enhance Monitoring & Evaluation:**
+  - [ ] Fully automate the Vertex AI Model Monitoring job to run after predictions and fix drift detection logic.
+  - [ ] Update the evaluation component to generate a confusion matrix image (`.png`).
+  - [ ] Log the confusion matrix as an artifact in the Vertex AI Model Registry for each new model version.
+
+- **Improve Experimentation:**
+  - [ ] Enhance TensorBoard logging within the training script to include more detailed visualizations and metrics using `tf.summary`.
