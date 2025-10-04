@@ -28,10 +28,18 @@ def get_label_selection_sql() -> str:
             END AS i1_true_label
     """
 
-def get_base_from_where_sql() -> str:
-    """Returns the FROM and base WHERE clause."""
+def get_train_from_sql() -> str:
     return """
         FROM `af-finanzen.monatsabschluss.revolut_abrechnung`
+    """
+
+def get_predict_from_sql() -> str:
+    return """
+        FROM `af-finanzen.banks.revolut_v`
+    """
+
+def get_common_where_sql() -> str:
+    return """
         WHERE type NOT IN ('FEE', 'ATM')
     """
 
@@ -43,7 +51,8 @@ def train_data_query() -> str:
     return f"""
         {get_feature_selection_sql()}
         {get_label_selection_sql()}
-        {get_base_from_where_sql()}
+        {get_train_from_sql()}
+        {get_common_where_sql()}
     """
 
 def predict_data_query() -> str:
@@ -53,6 +62,7 @@ def predict_data_query() -> str:
     """
     return f"""
         {get_feature_selection_sql()}
-        {get_base_from_where_sql()}
+        {get_predict_from_sql()}
+        {get_common_where_sql()}
         AND month = {{month_placeholder}}
     """
