@@ -16,12 +16,11 @@ from src.common.base_sql import predict_data_query
 PROJECT_ID = os.getenv("VERTEX_PROJECT_ID")
 REGION = os.getenv("VERTEX_REGION")
 PIPELINE_BUCKET = os.getenv("VERTEX_BUCKET") # gcs bucket for pipeline artifacts
-TENSORBOARD_RESOURCE_NAME = os.getenv("TENSORBOARD_RESOURCE_NAME")
 PIPELINE_NAME = os.getenv("PIPELINE_NAME", "transak-i1-predict")
 SERVING_CONTAINER_IMAGE_URI = os.getenv("SERVING_CONTAINER_IMAGE_URI", "europe-docker.pkg.dev/vertex-ai-restricted/prediction/tf_opt-cpu.2-17:latest")
-if not all([PROJECT_ID, REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME]):
+if not all([PROJECT_ID, REGION, PIPELINE_BUCKET]):
     raise ValueError(
-        "The following environment variables must be set: VERTEX_PROJECT_ID, VERTEX_REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME"
+        "The following environment variables must be set: VERTEX_PROJECT_ID, VERTEX_REGION, PIPELINE_BUCKET"
     )
 PIPELINE_ROOT = f"{PIPELINE_BUCKET}/pipelines/{PIPELINE_NAME}"
 EXPERIMENT_NAME = f"{PIPELINE_NAME}-experiment"
@@ -58,7 +57,7 @@ def transak_i1_pipeline_predict(
     get_prediction_data = get_prediction_data_op( # type: ignore
         project_id=project_id,
         month=prediction_config.output,
-        query=predict_data_query(),
+        query=predict_data_query()
     )
     get_prediction_data.set_display_name("Get Prediction Data")
 
@@ -66,7 +65,7 @@ def transak_i1_pipeline_predict(
     get_prod_model = get_production_model_op( # type: ignore
         project=project_id,
         location=region,
-        model_display_name=model_name,
+        model_display_name=model_name
     )
     get_prod_model.set_display_name("Get Production Model")
 
@@ -97,9 +96,6 @@ if __name__ == "__main__":
 
     mode = sys.argv[1] if len(sys.argv) > 1 else "submit"
     package_path = f"{PIPELINE_NAME}.json"
-    # experiment_name = EXPERIMENT_NAME
-    # local_time = time.strftime("%Y%m%d%H%M%S", time.localtime())
-    # run_name = f"run-{local_time}"
     print(f"Executing pipeline script in '{mode}' mode.")
 
     # Get month from command line if provided
@@ -115,28 +111,9 @@ if __name__ == "__main__":
     print(f"Pipeline compiled successfully to {package_path}")
 
     if mode == "submit":
-        aiplatform.init(project=PROJECT_ID,
-                        location=REGION,
-                        #experiment=EXPERIMENT_NAME,
-                        #experiment_tensorboard=TENSORBOARD_RESOURCE_NAME,
-                        )
-        # aiplatform.autolog()
-
-        # experiment =aiplatform.Experiment.get_or_create(
-        #     experiment_name=EXPERIMENT_NAME,
-        #     description="Tracking experiments for the Transak Iteration 1 Vertex AI Prediction Pipeline."
-        # )
-
-        # tb = aiplatform.Tensorboard(TENSORBOARD_RESOURCE_NAME) # type: ignore
-        # experiment.assign_backing_tensorboard(tb)
-        # print(f"Tensorboard resource name: {tb.resource_name}")
-
-        # print(f"Experiment name: '{EXPERIMENT_NAME}'")
-        # print(f"Experiment run name: '{run_name}'")
+        aiplatform.init(project=PROJECT_ID, location=REGION)
 
         parameter_values={
-            #'experiment_name': EXPERIMENT_NAME,
-            #'run_name': run_name,
             'project_id': PROJECT_ID,
             'region': REGION,
             'model_name': 'transak-i1-train-model'
@@ -145,9 +122,6 @@ if __name__ == "__main__":
         if month_arg:
             parameter_values['month'] = month_arg
 
-        # with aiplatform.start_run(run=run_name, tensorboard=TENSORBOARD_RESOURCE_NAME) as experiment_run:
-        # with aiplatform.start_run(run=run_name, tensorboard=TENSORBOARD_RESOURCE_NAME) as experiment_run:
-        #     print(f"Started experiment run '{run_name}' in experiment '{EXPERIMENT_NAME}'")
         pipeline_job = aiplatform.PipelineJob(
             display_name=PIPELINE_JOB_NAME,
             template_path=package_path,
@@ -156,5 +130,4 @@ if __name__ == "__main__":
         )
 
         print(f"Submitting pipeline job '{PIPELINE_NAME}' to Vertex AI...")
-        #pipeline_job.submit(experiment=experiment)
         pipeline_job.submit()
