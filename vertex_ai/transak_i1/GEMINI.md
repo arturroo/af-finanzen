@@ -116,34 +116,44 @@ The entire system is orchestrated by **Vertex AI Pipelines**, with each step run
 
 ```ascii
 [revolut_change_file_names-i1.sh]
-           |
-           v
-[Uploads _SUCCESS to GCS] -> [GCS Notification] -> [Pub/Sub] -> [cf-predict-i1]
-                                                                     |
-                                                                     v
-                                                     +-----------------------------+
-                                                     |                             |
-                                        (if drift >  |  Training & Promotion       |
-                                        threshold)   |       Pipeline              |
-                                           +---------|                             |
-                                           |         +-----------------------------+
-                                           |                       |
-                                           | (creates new          |
-                                           | 'production' model)   V
-[Prediction & Monitoring Pipeline] -> [Model Registry] -> [Batch Prediction] -> [Results in BQ]
-      |                                  ^
-      | (uses 'production' model)        |
-      +----------------------------------+
-
+                |
+                v
+    [Uploads _SUCCESS to GCS]
+                |
+                v
+        [GCS Notification]
+                |
+                v
+            [Pub/Sub]
+                |
+                v
+         [cf-predict-i1]
+                |
+                v
++------------------------------------------------------------------------------------+
+| [Prediction Pipeline] -> [Model Registry] -> [Batch Prediction] -> [Results in BQ] |
++------------------------------------------------------------------------------------+
+                |
+                v
+ +---------------------------+
+ |      [Monitoring Job]     |
+ |             |             |
+ +--(if drift > threshold)---+
+                |
+                v
+  +-----------------------------+
+  |                             |
+  |  Training & Promotion       |
+  |       Pipeline              |
+  |                             |
+  +-----------------------------+
 ```
 
 ```mermaid
 graph TD
     subgraph "1. Data Ingestion Trigger"
         T1["revolut_change_file_names-i1.sh"] --> T2["Uploads _SUCCESS to GCS"];
-        T2 --> T3["GCS Notification"];
-        T3 --> T4["Pub/Sub Topic"];
-        T4 --> A["cf-predict-i1"];
+        T2 --> A["cf-predict-i1"];
     end
 
     subgraph "2. Prediction Pipeline"
@@ -153,19 +163,25 @@ graph TD
         B2 --> B3["Save results to BigQuery"];
     end
 
-    B --> M["3. Start Model Monitoring Job"];
+    B3 --> M["3. Start Model Monitoring Job"];
 
     subgraph "4. Training & Blessing Pipeline"
         C["Pipeline: transak-i1-train"];
-        C --> C1["Train new 'challenger'"];
-        C --> C2["Get 'champion' model"];
-        C --> C3["Batch Predict (Challenger)"];
-        C --> C4["Batch Predict (Champion)"];
-        C3 --> C5["Evaluate Challenger"];
-        C4 --> C6["Evaluate Champion"];
-        C5 --> C7["Compare Metrics"];
-        C6 --> C7;
-        C7 -- "if challenger is better" --> C8["Update 'production' alias"];
+        C --> C1["Split the data"];
+        C1 --> C2["Train and validation datasets"]
+        C1 --> C3["Test dataset"]
+        C2 --> C4["Train new 'challenger'"];
+        C4 --> C5["Batch Predict (Challenger)"];
+        C3 --> C5["Batch Predict (Challenger)"];
+        C5 --> C6["Evaluate Challenger"];
+        
+        C --> C10["Get 'champion' model"];
+        C10 --> C11["Batch Predict (Champion)"];
+        C3 --> C11["Batch Predict (Champion)"];
+        C11 --> C12["Evaluate Champion"];
+        C6 --> C20["Compare Metrics"];
+        C12 --> C20["Compare Metrics"];
+        C20 -- "if challenger is better" --> C21["Update 'production' alias"];
     end
 
     M -- "if drift > threshold" --> C;
