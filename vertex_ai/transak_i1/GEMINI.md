@@ -76,7 +76,10 @@ The entire system is orchestrated by **Vertex AI Pipelines**, with each step run
 
 **Goal:** To generate monthly predictions using the best available model and to continuously monitor for data drift.
 
-**Trigger:** Scheduled to run automatically using **Cloud Scheduler**.
+**Trigger:** Event-driven. The pipeline starts automatically when new Revolut data is uploaded.
+1.  A local script (`bash/revolut_change_file_names-i1.sh`) uploads monthly data and a `_SUCCESS` file to GCS.
+2.  A GCS notification sends a message to a Pub/Sub topic.
+3.  A Cloud Function (`cf-predict-i1`) is triggered, which reads the month from the file and starts the Vertex AI prediction pipeline.
 
 ### Component Workflow:
 
@@ -112,6 +115,12 @@ The entire system is orchestrated by **Vertex AI Pipelines**, with each step run
 ## 3. System Interaction Diagram
 
 ```ascii
+[revolut_change_file_names-i1.sh]
+           |
+           v
+[Uploads _SUCCESS to GCS] -> [GCS Notification] -> [Pub/Sub] -> [cf-predict-i1]
+                                                                     |
+                                                                     v
                                                      +-----------------------------+
                                                      |                             |
                                         (if drift >  |  Training & Promotion       |
@@ -121,11 +130,45 @@ The entire system is orchestrated by **Vertex AI Pipelines**, with each step run
                                            |                       |
                                            | (creates new          |
                                            | 'production' model)   V
-[GCS ObjectFinalize Trigger] -> [Prediction & Monitoring Pipeline] -> [Model Registry] -> [Batch Prediction] -> [Results in BQ]
-                               |                                  ^
-                               | (uses 'production' model)        |
-                               +----------------------------------+
+[Prediction & Monitoring Pipeline] -> [Model Registry] -> [Batch Prediction] -> [Results in BQ]
+      |                                  ^
+      | (uses 'production' model)        |
+      +----------------------------------+
 
+```
+
+```mermaid
+graph TD
+    subgraph "1. Data Ingestion Trigger"
+        T1["revolut_change_file_names-i1.sh"] --> T2["Uploads _SUCCESS to GCS"];
+        T2 --> T3["GCS Notification"];
+        T3 --> T4["Pub/Sub Topic"];
+        T4 --> A["cf-predict-i1"];
+    end
+
+    subgraph "2. Prediction Pipeline"
+        A --> B["Pipeline: transak-i1-predict"];
+        B --> B1["Get 'production' model"];
+        B --> B2["Run Batch Prediction"];
+        B2 --> B3["Save results to BigQuery"];
+    end
+
+    B --> M["3. Start Model Monitoring Job"];
+
+    subgraph "4. Training & Blessing Pipeline"
+        C["Pipeline: transak-i1-train"];
+        C --> C1["Train new 'challenger'"];
+        C --> C2["Get 'champion' model"];
+        C --> C3["Batch Predict (Challenger)"];
+        C --> C4["Batch Predict (Champion)"];
+        C3 --> C5["Evaluate Challenger"];
+        C4 --> C6["Evaluate Champion"];
+        C5 --> C7["Compare Metrics"];
+        C6 --> C7;
+        C7 -- "if challenger is better" --> C8["Update 'production' alias"];
+    end
+
+    M -- "if drift > threshold" --> C;
 ```
 
 ---
@@ -133,7 +176,7 @@ The entire system is orchestrated by **Vertex AI Pipelines**, with each step run
 
 - **Automate Infrastructure & Triggers:**
   - [ ] Define Vertex AI Pipeline jobs and their schedules using Terraform.
-  - [ ] Implement a Cloud Function to automatically trigger the prediction pipeline when new data arrives in Cloud Storage.
+  - [x] Implement a Cloud Function to automatically trigger the prediction pipeline when new data arrives in Cloud Storage.
 
 - **Enhance Monitoring & Evaluation:**
   - [ ] Fully automate the Vertex AI Model Monitoring job to run after predictions and fix drift detection logic.

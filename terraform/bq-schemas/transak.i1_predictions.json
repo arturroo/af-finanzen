@@ -1,38 +1,102 @@
 [
-  { "name": "tid",
+  {
+    "name": "tid",
+    "type": "INTEGER",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "type",
     "type": "STRING",
-    "mode": "nullable",
-    "description": "Transaction ID for which prediction was done (unique JOIN key)"
+    "mode": "NULLABLE"
   },
-  { "name": "bank",
+  {
+    "name": "started_year",
+    "type": "INTEGER",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "started_month",
+    "type": "INTEGER",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "started_day",
+    "type": "INTEGER",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "started_weekday",
+    "type": "INTEGER",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "first_started_year",
+    "type": "INTEGER",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "first_started_month",
+    "type": "INTEGER",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "first_started_day",
+    "type": "INTEGER",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "first_started_weekday",
+    "type": "INTEGER",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "description",
     "type": "STRING",
-    "mode": "nullable",
-    "description": "Points source bank for the data"
+    "mode": "NULLABLE"
   },
-  { "name": "i1_pred_id",
-    "type": "INT64",
-    "mode": "nullable",
-    "description": "Predicted class index"
+  {
+    "name": "amount",
+    "type": "FLOAT",
+    "mode": "NULLABLE"
   },
-  { "name": "i1_proba",
-    "type": "FLOAT64",
-    "mode": "repeated",
-    "description": "Probabilities of all classes"
+  {
+    "name": "currency",
+    "type": "STRING",
+    "mode": "NULLABLE"
   },
-  { "name": "mid",
-    "type": "INT64",
-    "mode": "nullable",
-    "description": "Model ID in model metadata table"
+  {
+    "name": "i1_pred_label_id",
+    "type": "INTEGER",
+    "mode": "NULLABLE"
   },
-  { "name": "vid",
-    "type": "INT64",
-    "mode": "nullable",
-    "description": "Vectorizer ID or Embeddings ID in vectorizer metadata table"
+  {
+    "name": "logits",
+    "type": "FLOAT",
+    "mode": "REPEATED"
   },
-  { "name": "cre_ts",
-    "type": "TIMESTAMP",
-    "mode": "nullable",
-    "description": "When prediction was done",
-    "defaultValueExpression": "CURRENT_TIMESTAMP()"
+  {
+    "name": "probas",
+    "type": "FLOAT",
+    "mode": "REPEATED"
+  },
+  {
+    "name": "confidence_msp",
+    "type": "FLOAT",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "confidence_margin",
+    "type": "FLOAT",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "confidence_entropy",
+    "type": "FLOAT",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "pipeline_run_url",
+    "type": "STRING",
+    "mode": "NULLABLE"
   }
 ]

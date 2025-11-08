@@ -90,22 +90,36 @@ The project is organized into distinct Python packages to ensure a clean separat
 
 ## How to Run
 
-This project is designed to be run as a Vertex AI Pipeline.
+This project is designed to be run as a Vertex AI Pipeline. The prediction pipeline is triggered automatically, while the training pipeline can be run manually.
+
+### Automated Prediction Trigger
+
+The prediction pipeline is designed to run automatically in an event-driven workflow, starting from the moment you upload your monthly Revolut data.
+
+1.  **Data Upload**: Run the `bash/revolut_change_file_names-i1.sh` script. This prepares your local Revolut CSV files, renames them according to the expected partitioning (`/month=YYYYMM/account=CHF/`), and uploads them to the `gs://af-finanzen-banks/raw/revolut/` GCS bucket. Finally, it creates a `_SUCCESS` sentinel file in the bucket's root to signal that the upload for a given month is complete.
+
+2.  **GCS Notification**: An event notification is configured via Terraform (`terraform/variables.tf`). When the `_SUCCESS` file is written to the GCS bucket, a message is automatically sent to the `ps-predict-i1` Pub/Sub topic.
+
+3.  **Cloud Function**: The `cf-predict-i1` Cloud Function is subscribed to the `ps-predict-i1` topic. Upon receiving a message, it activates, reads the month from the `_SUCCESS` file, and uses it to start the Vertex AI prediction pipeline.
+
+4.  **Vertex AI Pipeline**: The function triggers the `transak-i1-predict` pipeline, passing the specific month as a parameter. The pipeline then proceeds to fetch the production model, get the corresponding data for that month, and generate predictions.
+
+### Manual Pipeline Runs
 
 1.  **Set Up Environment:**
     * Ensure the Google Cloud SDK is installed and configured.
     * Create a local Python virtual environment and install dependencies from `pyproject.toml` using `uv pip install .[all]`.
 
-2.  **Build the Containers:**
+2.  **Build the Container:**
     * From the project root, run the following command to build the custom container and push it to Artifact Registry:
         ```bash
         gcloud builds submit --region="europe-west1" --tag="europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train-predict:latest" .
         ```
 
-3.  **Run the Pipeline:**
+3.  **Run the Training Pipeline:**
     * Set the required environment variables in your terminal (`VERTEX_PROJECT_ID`, `VERTEX_REGION`, `VERTEX_BUCKET`, `VERTEX_TENSORBOARD_NAME`).
-    * Execute the pipeline script from the project root:
+    * Execute the training pipeline script from the project root:
         ```bash
-        python -m pipeline.pipeline submit
+        python -m pipelines.pipeline_train submit
         ```
 

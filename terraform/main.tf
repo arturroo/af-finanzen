@@ -30,7 +30,19 @@ module "iam" {
 module "gcf" {
     source = "./modules/gcf"
     project_id = var.project_id
-    cf_names = var.cf_names
+    cf_names = { for k, v in var.cf_names : k => v if try(v.gen, 1) == 1 }
+    gcf_bucket = module.gstorage.gcf_bucket
+
+    depends_on = [
+        module.gstorage,
+        module.pubsub
+    ]
+}
+
+module "gcf_gen2" {
+    source = "./modules/gcf_gen2"
+    project_id = var.project_id
+    cf_names = { for k, v in var.cf_names : k => v if try(v.gen, 1) == 2 }
     gcf_bucket = module.gstorage.gcf_bucket
 
     depends_on = [

@@ -54,9 +54,9 @@ resource "google_cloudfunctions_function" "cf_pubsub" {
     create = "20m"
   }
 
-  depends_on = [
-    google_storage_bucket_object.zip
-  ]
+  # depends_on = [
+  #   google_storage_bucket_object.zip
+  # ]
 }
 
 resource "google_cloudfunctions_function" "cf_http" {
@@ -76,7 +76,7 @@ resource "google_cloudfunctions_function" "cf_http" {
   }
   available_memory_mb = 1024
 
-  depends_on = [
-    google_storage_bucket_object.zip
-  ]
+  # depends_on = [
+  #   google_storage_bucket_object.zip
+  # ]
 }

@@ -24,6 +24,11 @@ variable "buckets" {
 variable "gs_notifications" {
     description = "Google Storage Notifications"
     default = {
+        "revolut" = {
+            bucket = "banks"
+            object_name_prefix = "raw/revolut/_SUCCESS"
+            topic = "ps-predict-i1"
+        }
         "ubs" = {
             bucket = "banks"
             object_name_prefix = "raw/ubs/"
@@ -118,14 +123,14 @@ variable "external_tables" {
                 autodetect  = false
                 schema      = "bq-schemas/banks.revolut_raw.json"
                 source_uris = [
-                    "gs://af-finanzen-banks/revolut_raw/*",
+                    "gs://af-finanzen-banks/raw/revolut/*",
                 ]
                 csv_options = {
                     quote               = "\""
                     skip_leading_rows   = 1
                 }
                 hive_partitioning_options = {
-                    # 2023-ß7-02
+                    # 2023-07-02
                     # Error: googleapi: Error 400: Field amount has type parameters, but it is not allowed in external table., invalid
                     # because this field is financial data: type Numeric (Decimal) with precision and scale
                     # mode = "CUSTOM"
@@ -133,7 +138,7 @@ variable "external_tables" {
                     # 2023-07-02
                     # In this case Schema from JSON file is respected but without parameters.
                     # So the column amount is Numeric but without scale and precision parameters
-                    source_uri_prefix = "gs://af-finanzen-banks/revolut_raw/"
+                    source_uri_prefix = "gs://af-finanzen-banks/raw/revolut/"
                 }
 
             }
@@ -229,6 +234,11 @@ variable "views" {
 variable "topics" {
     description = "PubSub Topics"
     default = {
+        "ps-predict-i1" = {
+            labels = {
+                "publisher" = "gs"
+            }
+        }
         "ps-transform-csv" = {
             labels = {
                 "publisher" = "gs"
@@ -254,33 +264,55 @@ variable "bindings" {
       "gs--ps-transform-csv" = {
           topic = "ps-transform-csv"
       }
+      "gs--ps-predict-i1" = {
+          topic = "ps-predict-i1"
+      }
   }
 }
 
 variable "cf_names" {
     description = "Google Cloud Functions"
+    # type = map(object({
+    #     gen = optional(number, 1)
+    #     trigger_type = string
+    #     labels = optional(map(string), {})
+    #     memory = optional(string, "256Mi")
+    #     max_instances = optional(number, 5)
+    #     min_instances = optional(number, 0)
+    #     timeout = optional(number, 60)
+    #     entry_point = optional(string, "main")
+    #     runtime = optional(string, "python39")
+    #     name = optional(string)
+    #     region = optional(string)
+    #     pipeline_name = optional(string)
+    #     env = optional(map(string), {}) # New env attribute
+    # }))
     default = {
-        "cf-transform-csv" = {
-            labels = {
-                "publisher" = "gs"
-            }
+        "cf-predict-i1" = {
+            gen = 2
             trigger_type = "pubsub"
+            labels = {"publisher" = "gs"}
+            memory = "512Mi"
+            env = {
+                PIPELINE_BUCKET = "gs://af-finanzen-mlops"
+                PIPELINE_NAME = "transak-i1-predict"
+            }
+        }
+        "cf-transform-csv" = {
+            trigger_type = "pubsub"
+            labels = {"publisher" = "gs"}
         }
         "cf-i0-predict-lr" = {
-            labels = {
-                # "publisher" = "gs"
-            }
             trigger_type = "http"
+            labels = {}
         }
         "cf-pdfminions" = {
-            labels = {
-            }
             trigger_type = "http"
+            labels = {}
         }
         "cf-pdf2bq" = {
-            labels = {
-            }
             trigger_type = "http"
+            labels = {}
         }
 
     }

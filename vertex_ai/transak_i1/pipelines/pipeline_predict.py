@@ -4,6 +4,7 @@ import time
 from typing import Optional
 from kfp import dsl, compiler
 from google.cloud import aiplatform
+from google.cloud import storage
 from pipelines.components.prediction_config_generator import prediction_config_generator_op
 from pipelines.components.get_prediction_data import get_prediction_data_op
 from pipelines.components.get_production_model import get_production_model_op
@@ -13,16 +14,18 @@ from src.common.base_sql import predict_data_query
 
 
 # Define Your Pipeline Configuration
-PROJECT_ID = os.getenv("VERTEX_PROJECT_ID")
-REGION = os.getenv("VERTEX_REGION")
-PIPELINE_BUCKET = os.getenv("VERTEX_BUCKET") # gcs bucket for pipeline artifacts
+PROJECT_ID = os.getenv("VERTEX_PROJECT_ID", "af-finanzen")
+REGION = os.getenv("VERTEX_REGION", "europe-west6")
+PIPELINE_BUCKET = os.getenv("VERTEX_BUCKET", "gs://af-finanzen-mlops") # gcs bucket for pipeline artifacts
 PIPELINE_NAME = os.getenv("PIPELINE_NAME", "transak-i1-predict")
 SERVING_CONTAINER_IMAGE_URI = os.getenv("SERVING_CONTAINER_IMAGE_URI", "europe-docker.pkg.dev/vertex-ai-restricted/prediction/tf_opt-cpu.2-17:latest")
+
 if not all([PROJECT_ID, REGION, PIPELINE_BUCKET]):
     raise ValueError(
         "The following environment variables must be set: VERTEX_PROJECT_ID, VERTEX_REGION, PIPELINE_BUCKET"
     )
 PIPELINE_ROOT = f"{PIPELINE_BUCKET}/pipelines/{PIPELINE_NAME}"
+PIPELINE_TEMPLATE_GCS_PATH = f"{PIPELINE_ROOT}/{PIPELINE_NAME}.json"
 EXPERIMENT_NAME = f"{PIPELINE_NAME}-experiment"
 PIPELINE_JOB_NAME = f"{PIPELINE_NAME}-job"
 DATASET = "transak"
@@ -49,7 +52,7 @@ def transak_i1_pipeline_predict(
     """Defines the sequence of operations in the pipeline. Pipeline orchestrator will execute them."""
     # 1. Prediction Config Generator
     prediction_config = prediction_config_generator_op( # type: ignore
-        prediction_month=month,
+        month=month,
     )
     prediction_config.set_display_name("Generate Prediction Config")
 
@@ -94,7 +97,7 @@ def transak_i1_pipeline_predict(
 # Compile and Run the Pipeline
 if __name__ == "__main__":
 
-    mode = sys.argv[1] if len(sys.argv) > 1 else "submit"
+    mode = sys.argv[1] if len(sys.argv) > 1 else "compile"
     package_path = f"{PIPELINE_NAME}.json"
     print(f"Executing pipeline script in '{mode}' mode.")
 
@@ -106,9 +109,18 @@ if __name__ == "__main__":
     # Compile the pipeline into a JSON (which is a form of YAML) file
     compiler.Compiler().compile(
         pipeline_func=transak_i1_pipeline_predict,
-        package_path=f"{PIPELINE_NAME}.json",
+        package_path=package_path,
     )
     print(f"Pipeline compiled successfully to {package_path}")
+
+    # Upload the compiled pipeline to GCS
+    bucket_name = PIPELINE_BUCKET.replace("gs://", "")
+    blob_path = PIPELINE_TEMPLATE_GCS_PATH.replace(f"gs://{bucket_name}/", "")
+    storage_client = storage.Client(project=PROJECT_ID)
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(blob_path)
+    blob.upload_from_filename(package_path)
+    print(f"Compiled pipeline uploaded to {PIPELINE_TEMPLATE_GCS_PATH}")
 
     if mode == "submit":
         aiplatform.init(project=PROJECT_ID, location=REGION)
@@ -118,13 +130,12 @@ if __name__ == "__main__":
             'region': REGION,
             'model_name': 'transak-i1-train-model'
         }
-        parameter_values={}
         if month_arg:
             parameter_values['month'] = month_arg
 
         pipeline_job = aiplatform.PipelineJob(
             display_name=PIPELINE_JOB_NAME,
-            template_path=package_path,
+            template_path=PIPELINE_TEMPLATE_GCS_PATH,
             parameter_values=parameter_values,
             enable_caching=False # Disable caching to ensure all new code runs
         )

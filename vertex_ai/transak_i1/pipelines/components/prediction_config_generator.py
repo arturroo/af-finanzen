@@ -6,7 +6,7 @@ from typing import Optional
 )
 def prediction_config_generator_op(
     # resolved_prediction_month: Output[int],
-    prediction_month: Optional[int] = None
+    month: Optional[int] = None
 ) -> int:
     """
     Resolves the prediction month.
@@ -14,10 +14,10 @@ def prediction_config_generator_op(
     """
     from datetime import datetime, timedelta
 
-    print(f"Generating prediction config for month: {prediction_month}")
-    if prediction_month is not None:
-        print(f"Prediction month provided: {prediction_month}")
-        resolved_month = prediction_month
+    print(f"Generating prediction config for month: {month}")
+    if month is not None:
+        print(f"Prediction month provided: {month}")
+        resolved_month = month
     else:
         print("No prediction month provided, calculating default (last month).")
         # Go back 30 days to ensure we are in the previous month.
