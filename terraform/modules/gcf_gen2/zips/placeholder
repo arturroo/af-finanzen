@@ -1,0 +1,2 @@
+This is directory for Google Cloud Functions zip files that are used by terraform to check if
+the sourcecode is different as the one in cloud
