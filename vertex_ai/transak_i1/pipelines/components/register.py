@@ -9,6 +9,7 @@ from google.cloud import aiplatform
 def register_model_op(
     # --- Component Inputs ---
     model: Input[Model],
+    train_data_uri: str,
     candidate_model: Output[VertexModel],
     model_display_name: str,
     serving_container_image_uri: str,
@@ -35,7 +36,10 @@ def register_model_op(
     else:
         print("No parent model found. A new model entry will be created.")
 
-    description = "Wide & Deep transaction classifier trained via a Vertex AI Pipeline."
+    description = (
+        "Wide & Deep transaction classifier trained via a Vertex AI Pipeline.\n"
+        f"Training data URI: {train_data_uri}"
+    )
 
     # Upload the model to Vertex AI Model Registry
     print(f"Uploading model to Vertex AI Model Registry: {model_display_name}")

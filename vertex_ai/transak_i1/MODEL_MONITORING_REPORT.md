@@ -106,8 +106,3 @@ The calculated drift for both monitored features was below the configured alert 
         *   How to call monitoring from pipeline predict
         *   how to call train pipeline from monitoring
     *   **Alerting:** How to do alering - we need 3 solutions with their pros and cons. Requirements: email alert to Artur if one of number over threshold and train pipeline executed.
-
-*   Example propose
-    *   **Automated Trigger:** The next step is to discuss 3 other options as to create a component in the `pipeline_predict.py` that automatically starts a new model monitoring job after the batch prediction step is complete, with pros and cons from all of them. Result: choosem one option, planned and inplemented.
-    *   **Alerting:** The monitoring configuration includes email and notification channels. The next step in the MLOps pipeline will be to create a component that can listen for these alerts (e.g., via a Pub/Sub topic) and conditionally trigger the training pipeline if drift is detected.
-    *   **CLI/API:** For full automation, interaction with the Model Monitoring service will need to be done via direct API calls using the Python client library, as a `gcloud` command is not currently available.
