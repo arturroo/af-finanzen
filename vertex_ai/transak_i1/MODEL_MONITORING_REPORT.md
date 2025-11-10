@@ -16,7 +16,30 @@ An existing model monitor instance was investigated.
         *   **Base:** Data split "train" from the pipeline train that produced model with alias "production" in model registry
         *   **Current Input:** Result of the batch prediction from 202508 pipeline predict run. In production monitoring, the monitoring should be run on last month  input data or take month as parameter. 
     * **Prediction Drift:** Throws error because unidentified yet problem in schema of predictions csv files by last and current prediction runs. It has to be skipped in new Monitoring. We can do this in new iteration.
-
+    * **Training data source:** gs://af-finanzen-mlops/pipelines/transak-i1-train/819397114258/transak-i1-train-20250831130933/data-splits-op_4986344605592059904/train_data.csv 
+    * **Model schema:** 
+      {
+        "featureFields": [
+          {
+            "name": "type",
+            "dataType": "categorical",
+            "repeated": false
+          },
+          {
+            "name": "description",
+            "dataType": "categorical",
+            "repeated": false
+          }
+        ],
+        "predictionFields": [
+          {
+            "name": "i1_true_label_id",
+            "dataType": "integer",
+            "repeated": false
+          }
+        ],
+        "groundTruthFields": []
+      }
 
 ### Monitored Features & Drift Configuration
 

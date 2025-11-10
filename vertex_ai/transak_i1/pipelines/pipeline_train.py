@@ -15,6 +15,8 @@ from google_cloud_pipeline_components.v1.bigquery import BigqueryQueryJobOp
 from src.common.base_sql import train_data_query
 from pipelines.components.get_production_model import get_production_model_op
 from pipelines.components.bless_or_not_to_bless import bless_or_not_to_bless_op
+from pipelines.components.create_monitoring_baseline import create_monitoring_baseline_op
+from pipelines.components.setup_monitoring import setup_monitoring_op
 
 
 # Define Your Pipeline Configuration
@@ -24,9 +26,12 @@ PIPELINE_BUCKET = os.getenv("VERTEX_BUCKET") # gcs bucket for pipeline artifacts
 TENSORBOARD_RESOURCE_NAME = os.getenv("TENSORBOARD_RESOURCE_NAME")
 PIPELINE_NAME = os.getenv("PIPELINE_NAME", "transak-i1-train")
 SERVING_CONTAINER_IMAGE_URI = os.getenv("SERVING_CONTAINER_IMAGE_URI", "europe-docker.pkg.dev/vertex-ai-restricted/prediction/tf_opt-cpu.2-17:latest")
-if not all([PROJECT_ID, REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME]):
+NOTIFICATION_CHANNEL = os.getenv("NOTIFICATION_CHANNEL")
+USER_EMAILS = os.getenv("USER_EMAILS", "artur.fejklowicz@gmail.com")
+
+if not all([PROJECT_ID, REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME, NOTIFICATION_CHANNEL]):
     raise ValueError(
-        "The following environment variables must be set: VERTEX_PROJECT_ID, VERTEX_REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME"
+        "The following environment variables must be set: VERTEX_PROJECT_ID, VERTEX_REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME, NOTIFICATION_CHANNEL"
     )
 PIPELINE_ROOT = f"{PIPELINE_BUCKET}/pipelines/{PIPELINE_NAME}"
 EXPERIMENT_NAME = f"{PIPELINE_NAME}-experiment"
@@ -54,6 +59,8 @@ def transak_i1_pipeline_train(
     serving_container_image_uri: str = SERVING_CONTAINER_IMAGE_URI, # type: ignore
     experiment_name: str = EXPERIMENT_NAME, # type: ignore
     run_name: str = PIPELINE_JOB_NAME, # type: ignore
+    notification_channel: str = NOTIFICATION_CHANNEL, # type: ignore
+    user_emails: str = USER_EMAILS, # type: ignore
 ):
     """Defines the sequence of operations in the pipeline. Pipeline orchestrator will execute them."""
     # 1. Generate BigQuery job configuration
@@ -64,6 +71,15 @@ def transak_i1_pipeline_train(
         table_name_prefix="golden_data"
     )
     bq_config_generator.set_display_name("Generate BQ Config")
+
+    # 2. Get golden data from BigQuery
+    golden_data = BigqueryQueryJobOp(
+        project=project_id,
+        location=REGION,
+        query=train_data_query(),
+        job_configuration_query=bq_config_generator.outputs['job_configuration_query'],
+    )
+    golden_data.set_display_name("Get Golden Data")
 
     # 2. Train, val, test split
     data_splits = data_splits_op( # type: ignore
@@ -173,6 +189,33 @@ def transak_i1_pipeline_train(
             location=REGION
         )
         bless_model.set_display_name("Bless Model")
+
+        # Create monitoring baseline
+        batch_predict_monitoring = batch_predict_op(
+            project=project_id,
+            location=REGION,
+            vertex_model=register_model.outputs['candidate_model'],
+            test_data=data_splits.outputs['train_data'],  # Use training data for baseline
+            experiment_name=experiment_name,
+        )
+        batch_predict_monitoring.set_display_name("Batch Predict: Monitoring Baseline")
+
+        create_baseline = create_monitoring_baseline_op(
+            predictions_artifact=batch_predict_monitoring.outputs['predictions']
+        )
+        create_baseline.set_display_name("Create Monitoring Baseline")
+
+        # Setup monitoring
+        setup_monitoring = setup_monitoring_op(
+            project=project_id,
+            location=REGION,
+            model=register_model.outputs['candidate_model'],
+            baseline_dataset=create_baseline.outputs['monitoring_baseline'],
+            notification_channel=notification_channel,
+            user_emails=[user_emails],
+            display_name_prefix=f"{PIPELINE_NAME}-monitor"
+        )
+        setup_monitoring.set_display_name("Setup Model Monitoring")
 
     
 

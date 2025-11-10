@@ -1,0 +1,3 @@
+functions-framework==3.*
+google-cloud-aiplatform==1.56.0
+cloud-functions-hello-world==1.0.0
