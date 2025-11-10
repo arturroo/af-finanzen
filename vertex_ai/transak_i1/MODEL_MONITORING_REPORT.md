@@ -10,7 +10,13 @@ An existing model monitor instance was investigated.
 
 *   **Monitor Resource Name:** `projects/819397114258/locations/europe-west6/modelMonitors/3345048623229435904`
 *   **Monitored Model:** `transak-i1-train-model` (Version 36)
-*   **Monitoring Type:** This is a **Model Monitor** configured directly on a model in the Vertex AI Model Registry, not a `ModelDeploymentMonitoringJob` attached to a live endpoint. It is designed for monitoring drift against batch data.
+*   **Monitoring Type:** This is a **Model Monitor** configured directly on a model in the Vertex AI Model Registry, not a `ModelDeploymentMonitoringJob` attached to a live endpoint. 
+*   **Description:** There are 2 objectives:
+    *   **Data Drift:** It is designed for monitoring drift against input data. It is configured to compare distribution of input features between:
+        *   **Base:** Data split "train" from the pipeline train that produced model with alias "production" in model registry
+        *   **Current Input:** Result of the batch prediction from 202508 pipeline predict run. In production monitoring, the monitoring should be run on last month  input data or take month as parameter. 
+    * **Prediction Drift:** Throws error because unidentified yet problem in schema of predictions csv files by last and current prediction runs. It has to be skipped in new Monitoring. We can do this in new iteration.
+
 
 ### Monitored Features & Drift Configuration
 
@@ -90,7 +96,13 @@ The calculated drift for both monitored features was below the configured alert 
 ---
 
 ## 4. Next Steps for Production
-
-*   **Automated Trigger:** The next step is to create a component in the `pipeline_predict.py` that automatically starts a new model monitoring job after the batch prediction step is complete.
-*   **Alerting:** The monitoring configuration includes email and notification channels. The next step in the MLOps pipeline will be to create a component that can listen for these alerts (e.g., via a Pub/Sub topic) and conditionally trigger the training pipeline if drift is detected.
-*   **CLI/API:** For full automation, interaction with the Model Monitoring service will need to be done via direct API calls using the Python client library, as a `gcloud` command is not currently available.
+*   **Design production monitoring:** We need to discuss several steps foccusing only on DataDrift monitoring, because it worked in static onetime run. We need to design:
+    *   **What:** to use as Monitoring configuration?
+        *   Terraform
+        *   Manual configuration in GCP Wen console
+        *   Some Python program executed locally
+        *   Requirement: configuration should be saved somewhere in a file and should be possible for automatic deployment, but for now GitHub Actions are out of scope, but we will have them available in next iterations.  
+    *   **How:** to integrate the monitoring in the current setup so it is all automatic. We need for each integration 3 possible solutions with theirs pros and cons. There are 2 integration we need to think about:
+        *   How to call monitoring from pipeline predict
+        *   how to call train pipeline from monitoring
+    *   **Alerting:** How to do alering - we need 3 solutions with their pros and cons. Requirements: email alert to Artur if one of number over threshold and train pipeline executed.
