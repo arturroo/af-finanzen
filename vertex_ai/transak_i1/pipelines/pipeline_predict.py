@@ -9,6 +9,7 @@ from pipelines.components.prediction_config_generator import prediction_config_g
 from pipelines.components.get_prediction_data import get_prediction_data_op
 from pipelines.components.get_production_model import get_production_model_op
 from pipelines.components.batch_predict import batch_predict_op
+from pipelines.components.run_monitoring import run_monitoring_op
 from pipelines.components.save_predictions import save_predictions_op
 from src.common.base_sql import predict_data_query
 
@@ -91,6 +92,18 @@ def transak_i1_pipeline_predict(
         pipeline_run_id=dsl.PIPELINE_JOB_NAME_PLACEHOLDER,
     )
     save_predictions.set_display_name("Save Predictions")
+
+    # 6. Run Monitoring
+    run_monitoring = run_monitoring_op( # type: ignore
+        project=project_id,
+        location=region,
+        model=get_prod_model.outputs["production_model"],
+        prediction_results_gcs_uri=batch_predict_production.outputs["predictions"].uri,
+        prediction_results_format="jsonl",
+        job_display_name=f"transak-i1-monitoring-{prediction_config.output}",
+    )
+    run_monitoring.after(save_predictions)
+    run_monitoring.set_display_name("Run Model Monitoring")
 
 
 

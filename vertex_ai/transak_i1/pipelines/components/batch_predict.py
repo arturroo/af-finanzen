@@ -1,4 +1,4 @@
-from kfp.dsl import container_component, ContainerSpec, Input, Output, Model, Dataset, Artifact
+from kfp.dsl import container_component, ContainerSpec, Input, Output, Dataset, Artifact
 from google_cloud_pipeline_components.types.artifact_types import VertexModel
 
 # This is best practice to define pushed container's image URI as a constant at the top.

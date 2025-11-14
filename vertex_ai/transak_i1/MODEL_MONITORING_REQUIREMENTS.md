@@ -30,7 +30,7 @@ This component runs immediately after the baseline is created, inside the same c
 *   **Key Logic:**
     *   Sets drift thresholds for features like `description` and `type`.
     *   Configures the comprehensive `NotificationSpec` to use all three mechanisms:
-        *   `notification_channels`: The list of channel resource names that point to the `ps-transak-i1-train-trigger` Pub/Sub topic. This is the primary trigger.
+        *   `notification_channels`: The list of channel resource names that point to the `ps-i1-train` Pub/Sub topic. This is the primary trigger.
         *   `user_emails`: A list of emails for direct human-readable alerts.
         *   `enable_cloud_logging`: Set to `True` to ensure a persistent audit trail of all anomalies is written to Cloud Logging for debugging and historical analysis.
 
@@ -43,9 +43,9 @@ This component remains at the end of the prediction pipeline. Its role is to tri
 ### Step 1e: The Automated Retraining Loop (Direct Notification)
 This is the core of the trigger mechanism.
 
-1.  **Notification Channel:** A `google_monitoring_notification_channel` (defined in Terraform) is configured to publish messages to our `ps-transak-i1-train-trigger` Pub/Sub topic.
+1.  **Notification Channel:** A `google_monitoring_notification_channel` (defined in Terraform) is configured to publish messages to our `ps-i1-train` Pub/Sub topic.
 2.  **Pub/Sub Topic:** Receives the anomaly event directly from the `ModelMonitor` via the notification channel.
-3.  **Cloud Function:** The `cf-transak-i1-train-trigger` function is subscribed to the topic. When it receives the event, it uses the Vertex AI SDK to **launch a new run of the `pipeline-train` pipeline**, closing the loop.
+3.  **Cloud Function:** The `cf-i1-train` function is subscribed to the topic. When it receives the event, it uses the Vertex AI SDK to **launch a new run of the `pipeline-train` pipeline**, closing the loop.
 
 ---
 
@@ -216,12 +216,12 @@ model_monitoring_job=my_model_monitor.run(
     *   Add a `dsl.Condition` that runs after the `bless_or_not_to_bless_op`.
     *   Inside the condition, chain the following operations: `bless_model_op` -> `create_monitoring_baseline_op` -> `setup_monitoring_op`.
 3.  **Update Terraform for Eventing:**
-    *   Define the `google_pubsub_topic` for `ps-transak-i1-train-trigger`.
+    *   Define the `google_pubsub_topic` for `ps-i1-train`.
     *   Define a `google_monitoring_notification_channel` that points to the Pub/Sub topic.
 4.  **Implement `run_monitoring_op` and Trigger Logic:**
     *   Create the `pipelines/components/run_monitoring.py` component.
     *   Modify `pipelines/pipeline_predict.py` to use `run_monitoring_op` at the end.
-    *   Create the `cloud_functions/cf-transak-i1-train-trigger/` directory and code.
+    *   Create the `cloud_functions/cf-i1-train/` directory and code.
     *   Add the Terraform definition for the trigger Cloud Function.
 
 ---

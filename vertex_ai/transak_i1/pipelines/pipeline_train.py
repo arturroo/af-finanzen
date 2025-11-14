@@ -17,6 +17,7 @@ from pipelines.components.get_production_model import get_production_model_op
 from pipelines.components.bless_or_not_to_bless import bless_or_not_to_bless_op
 from pipelines.components.create_monitoring_baseline import create_monitoring_baseline_op
 from pipelines.components.setup_monitoring import setup_monitoring_op
+from typing import List
 
 
 # Define Your Pipeline Configuration
@@ -27,7 +28,8 @@ TENSORBOARD_RESOURCE_NAME = os.getenv("TENSORBOARD_RESOURCE_NAME")
 PIPELINE_NAME = os.getenv("PIPELINE_NAME", "transak-i1-train")
 SERVING_CONTAINER_IMAGE_URI = os.getenv("SERVING_CONTAINER_IMAGE_URI", "europe-docker.pkg.dev/vertex-ai-restricted/prediction/tf_opt-cpu.2-17:latest")
 NOTIFICATION_CHANNEL = os.getenv("NOTIFICATION_CHANNEL")
-USER_EMAILS = os.getenv("USER_EMAILS", "artur.fejklowicz@gmail.com")
+USER_EMAILS = list(os.getenv("USER_EMAILS", "artur.fejklowicz@gmail.com").split(","))
+
 
 if not all([PROJECT_ID, REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME, NOTIFICATION_CHANNEL]):
     raise ValueError(
@@ -60,7 +62,7 @@ def transak_i1_pipeline_train(
     experiment_name: str = EXPERIMENT_NAME, # type: ignore
     run_name: str = PIPELINE_JOB_NAME, # type: ignore
     notification_channel: str = NOTIFICATION_CHANNEL, # type: ignore
-    user_emails: str = USER_EMAILS, # type: ignore
+    user_emails: List[str] = USER_EMAILS, # type: ignore
 ):
     """Defines the sequence of operations in the pipeline. Pipeline orchestrator will execute them."""
     # 1. Generate BigQuery job configuration
@@ -77,7 +79,7 @@ def transak_i1_pipeline_train(
         project=project_id,
         location=REGION,
         query=train_data_query(),
-        job_configuration_query=bq_config_generator.outputs['job_configuration_query'],
+        job_configuration_query=bq_config_generator.output,
     )
     golden_data.set_display_name("Get Golden Data")
 
@@ -109,13 +111,11 @@ def transak_i1_pipeline_train(
     # 4. Model Registration
     register_model = register_model_op( # type: ignore
         model=train_model.outputs['output_model'],
-        train_data_uri=data_splits.outputs['train_data'].uri,
         model_display_name=f"{PIPELINE_NAME}-model",
         serving_container_image_uri=serving_container_image_uri,
         project_id=project_id,
         region=REGION,
         experiment_name=experiment_name,
-        disable_cache2=True
     )
     register_model.set_display_name("Register Model")
 
@@ -209,10 +209,10 @@ def transak_i1_pipeline_train(
         setup_monitoring = setup_monitoring_op(
             project=project_id,
             location=REGION,
-            model=register_model.outputs['candidate_model'],
+            vertex_model=register_model.outputs['candidate_model'],
             baseline_dataset=create_baseline.outputs['monitoring_baseline'],
             notification_channel=notification_channel,
-            user_emails=[user_emails],
+            user_emails=user_emails,
             display_name_prefix=f"{PIPELINE_NAME}-monitor"
         )
         setup_monitoring.set_display_name("Setup Model Monitoring")
@@ -221,7 +221,7 @@ def transak_i1_pipeline_train(
 
 # Compile and Run the Pipeline
 if __name__ == "__main__":
-    mode = sys.argv[1] if len(sys.argv) > 1 else "submit"
+    mode = sys.argv[1] if len(sys.argv) > 1 else "compile"
     package_path = f"{PIPELINE_NAME}.json"
     experiment_name = EXPERIMENT_NAME
     local_time = time.strftime("%Y%m%d%H%M%S", time.localtime())
@@ -235,6 +235,8 @@ if __name__ == "__main__":
         pipeline_parameters={
             "project_id": PROJECT_ID,
             "target_column": "i1_true_label_id",
+            "user_emails": USER_EMAILS,
+            "notification_channel": NOTIFICATION_CHANNEL,
         }
     )
     print(f"Pipeline compiled successfully to {package_path}")

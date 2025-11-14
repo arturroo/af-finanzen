@@ -10,7 +10,7 @@ from kfp.dsl import (
     base_image="europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train-predict:latest",
     packages_to_install=["pandas", "numpy", "gcsfs"],
 )
-def create_monitoring_baseline(
+def create_monitoring_baseline_op(
     predictions_artifact: Input[Artifact],
     monitoring_baseline: Output[Dataset],
 ):

@@ -30,13 +30,13 @@ The implementation will be organized into three distinct epics, each with user s
 *This epic focuses on provisioning the cloud resources required for the event-driven trigger.*
 
 *   **User Story 2.1:** As an MLOps Engineer, I want to provision the necessary cloud infrastructure for an event-driven trigger so that drift detection events can be reliably routed.
-    *   **Task 2.1.1:** In a suitable Terraform file (e.g., `terraform/main.tf`), define a `google_pubsub_topic` resource named `ps-i1-train-trigger`.
+    *   **Task 2.1.1:** In a suitable Terraform file (e.g., `terraform/main.tf`), define a `google_pubsub_topic` resource named `ps-i1-train`.
     *   **Task 2.1.2:** In the same file, define a `google_monitoring_notification_channel` resource that is configured to publish to the new Pub/Sub topic.
 
 *   **User Story 2.2:** As an MLOps Engineer, I want a serverless function that triggers a new training pipeline run in response to a drift event.
-    *   **Task 2.2.1:** Create the directory `cloud_functions/cf-i1-train-trigger/` containing `main.py` and `requirements.txt`.
+    *   **Task 2.2.1:** Create the directory `cloud_functions/cf-i1-train/` containing `main.py` and `requirements.txt`.
     *   **Task 2.2.2:** Implement the Python logic in `main.py` to parse the incoming Pub/Sub message and use the Vertex AI SDK to launch a new run of the training pipeline.
-    *   **Task 2.2.3:** In Terraform, add a module call to deploy the `cf-i1-train-trigger` function, configuring its event trigger to be the `ps-i1-train-trigger` topic.
+    *   **Task 2.2.3:** In Terraform, add a module call to deploy the `cf-i1-train` function, configuring its event trigger to be the `ps-i1-train` topic.
 
 ---
 
@@ -57,12 +57,12 @@ The success of this implementation will be verified through a full end-to-end te
     a. Prepare a prediction dataset with artificially induced drift.
     b. Execute the `pipeline-predict` with this dataset.
     c. **Observe:** The monitoring job should detect the drift and send an anomaly alert.
-    d. **Verify:** The `cf-i1-train-trigger` Cloud Function should execute (visible in its logs).
+    d. **Verify:** The `cf-i1-train` Cloud Function should execute (visible in its logs).
     e. **Confirm:** A new run of the `pipeline-train` must appear automatically in the Vertex AI Pipelines UI.
 
 ### **3. Anticipated Challenges & Considerations**
 
 *   **IAM Permissions:** The primary challenge will be identifying and granting the correct IAM permissions. The service accounts used by KFP components and the Cloud Function will require roles such as `Vertex AI User`, `Pub/Sub Publisher`, and `Service Account User` to create monitors and trigger pipelines. These are critical and must be precise.
-*   **Event Schema:** The exact JSON schema of the anomaly payload sent from the `ModelMonitor` to the Pub/Sub topic is not fully documented. The parsing logic in the `cf-i1-train-trigger` function may require adjustments after inspecting the first real event.
+*   **Event Schema:** The exact JSON schema of the anomaly payload sent from the `ModelMonitor` to the Pub/Sub topic is not fully documented. The parsing logic in the `cf-i1-train` function may require adjustments after inspecting the first real event.
 *   **Asynchronous Debugging:** The system is highly asynchronous. Debugging a failure in the trigger chain (from monitor detection to pipeline start) will require careful inspection of logs from multiple services: Model Monitoring, Pub/Sub, and the Cloud Function.
 *   **Resource Naming:** The resource name of the `google_monitoring_notification_channel` must be passed from Terraform into the KFP pipeline at runtime. A robust mechanism for this (e.g., via pipeline parameters) must be established.

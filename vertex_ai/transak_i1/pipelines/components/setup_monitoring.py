@@ -1,4 +1,6 @@
-from kfp.dsl import Dataset, Input, Model, component
+from kfp.dsl import Dataset, Input, component
+from google_cloud_pipeline_components.types.artifact_types import VertexModel
+from typing import List
 
 @component(
     base_image="python:3.9",
@@ -7,13 +9,13 @@ from kfp.dsl import Dataset, Input, Model, component
         "google-cloud-pipeline-components==2.20.1",
     ],
 )
-def setup_monitoring(
+def setup_monitoring_op(
     project: str,
     location: str,
-    model: Input[Model],
+    vertex_model: Input[VertexModel],
     baseline_dataset: Input[Dataset],
     notification_channel: str,
-    user_emails: list[str],
+    user_emails: List[str],
     display_name_prefix: str,
 ):
     """
@@ -26,7 +28,7 @@ def setup_monitoring(
         baseline_dataset (Input[Dataset]): The dataset to be used as a baseline for monitoring.
         notification_channel (str): The resource name of the notification channel.
         user_emails (list[str]): A list of user emails for notifications.
-        display_name (str): The display name for the ModelMonitor.
+        display_name_prefix (str): The display name prefix for the ModelMonitor.
     """
     import logging
     from google.cloud import aiplatform
@@ -36,16 +38,22 @@ def setup_monitoring(
     logging.info(f"Component setup_monitoring started.")
     logging.info(f"project: {project}")
     logging.info(f"location: {location}")
-    logging.info(f"model.uri: {model.uri}")
+    logging.info(f"model.uri: {vertex_model.uri}")
     logging.info(f"baseline_dataset.uri: {baseline_dataset.uri}")
     logging.info(f"notification_channel: {notification_channel}")
     logging.info(f"user_emails: {user_emails}")
-    logging.info(f"display_name: {display_name}")
+    logging.info(f"display_name_prefix: {display_name_prefix}")
 
     aiplatform.init(project=project, location=location)
 
-    model_name = model.resource_name
-    model_version_id = model.version_id
+    model_resource_name_with_version = vertex_model.metadata["resourceName"]
+    logging.info(f"Got model resource name with version: {model_resource_name_with_version}")
+
+    model = aiplatform.Model(model_name=model_resource_name_with_version)
+    # model_version_id = model_obj.version_id
+    logging.info(f"Model resource name: {model.resource_name}")
+    logging.info(f"Model version id: {model.version_id}")
+
 
     # Define Monitoring Schema
     monitoring_schema = ml_monitoring.spec.ModelMonitoringSchema(
@@ -77,11 +85,11 @@ def setup_monitoring(
     # Create Model Monitor
     try:
         model_monitor = ml_monitoring.ModelMonitor.create(
-            display_name=f"{display_name_prefix}-v{model_version_id}",
+            display_name=f"{display_name_prefix}-v{model.version_id}",
             project=project,
             location=location,
-            model_name=model_name,
-            model_version_id=model_version_id,
+            model_name=model.resource_name,
+            model_version_id=model.version_id,
             model_monitoring_schema=monitoring_schema,
             training_dataset=training_dataset,
             tabular_objective_spec=ml_monitoring.spec.TabularObjective(
