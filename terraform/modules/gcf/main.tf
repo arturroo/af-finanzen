@@ -19,6 +19,7 @@ data "archive_file" "gcf_source" {
   type        = "zip"
   source_dir  = "${path.module}/../../../cloud_functions/${each.key}/"
   output_path = "${path.module}/zips/${each.key}.zip"
+  output_file_mode = "0666"
 }
 
 # Add source code zip to the Cloud Function's bucket (Cloud_function_bucket)

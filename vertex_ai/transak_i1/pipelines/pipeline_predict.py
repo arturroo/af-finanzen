@@ -50,17 +50,16 @@ def transak_i1_pipeline_predict(
     # model_name = "transak-i1-train-model"
     # month = "202508"
     print(f"Starting pipeline for month: {month}")
-    """Defines the sequence of operations in the pipeline. Pipeline orchestrator will execute them."""
-    # 1. Prediction Config Generator
-    prediction_config = prediction_config_generator_op( # type: ignore
-        month=month,
-    )
-    prediction_config.set_display_name("Generate Prediction Config")
+    # # 1. Prediction Config Generator
+    # prediction_config = prediction_config_generator_op( # type: ignore
+    #     month=month,
+    # )
+    # prediction_config.set_display_name("Generate Prediction Config")
 
     # 2. Get Prediction Data
     get_prediction_data = get_prediction_data_op( # type: ignore
         project_id=project_id,
-        month=prediction_config.output,
+        month=month,
         query=predict_data_query()
     )
     get_prediction_data.set_display_name("Get Prediction Data")
@@ -97,12 +96,12 @@ def transak_i1_pipeline_predict(
     run_monitoring = run_monitoring_op( # type: ignore
         project=project_id,
         location=region,
-        model=get_prod_model.outputs["production_model"],
-        prediction_results_gcs_uri=batch_predict_production.outputs["predictions"].uri,
+        vertex_model=get_prod_model.outputs["production_model"],
+        predictions=batch_predict_production.outputs["predictions"],
         prediction_results_format="jsonl",
-        job_display_name=f"transak-i1-monitoring-{prediction_config.output}",
+        job_display_name=f"transak-i1-monitor-{month}",
     )
-    run_monitoring.after(save_predictions)
+    #run_monitoring.after(save_predictions)
     run_monitoring.set_display_name("Run Model Monitoring")
 
 

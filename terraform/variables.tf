@@ -27,7 +27,7 @@ variable "gs_notifications" {
         "revolut" = {
             bucket = "banks"
             object_name_prefix = "raw/revolut/_SUCCESS"
-            topic = "ps-predict-i1"
+            topic = "ps-i1-predict"
         }
         "ubs" = {
             bucket = "banks"
@@ -260,6 +260,9 @@ variable "subscriptions" {
         }
         "ps-transform-csv-sub-debug" = {
             topic = "ps-transform-csv"
+        }
+        "ps-i1-predict-sub-debug" = {
+            topic = "ps-i1-predict"
         }
     }
 }

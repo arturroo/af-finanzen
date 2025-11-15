@@ -2,7 +2,7 @@
 
 import logging
 
-from kfp.dsl import (Input, component)
+from kfp.dsl import (Input, Artifact, component)
 from google_cloud_pipeline_components.types.artifact_types import VertexModel
 
 # Artur Fejklowicz
@@ -23,8 +23,8 @@ from google_cloud_pipeline_components.types.artifact_types import VertexModel
 def run_monitoring_op(
     project: str,
     location: str,
-    model: Input[VertexModel],
-    prediction_results_gcs_uri: str,
+    vertex_model: Input[VertexModel],
+    predictions: Input[Artifact],
     prediction_results_format: str,
     job_display_name: str,
 ):
@@ -42,42 +42,61 @@ def run_monitoring_op(
     logging.getLogger().setLevel(logging.INFO)
     aiplatform.init(project=project, location=location)
 
-    model_resource_name = model.metadata["resourceName"]
-    logging.info(f"Got model resource name: {model_resource_name}")
+    model_resource_name_with_version = vertex_model.metadata["resourceName"]
+    logging.info(f"Got model resource name: {model_resource_name_with_version}")
 
-    model_obj = aiplatform.Model(model_name=model_resource_name)
-    model_version_id = model_obj.version_id
-    logging.info(f"Model version ID: {model_version_id}")
+    model = aiplatform.Model(model_name=model_resource_name_with_version)
+    logging.info(f"Model resource name: {model.resource_name}")
+    logging.info(f"Model version id: {model.version_id}")
 
-    # List all monitors and filter for the one matching our model and version
-    monitors = ml_monitoring.ModelMonitor.list()
-    
-    target_monitor = None
-    for monitor in monitors:
-        logging.info(f"Checking monitor: {monitor.resource_name}")
-        logging.info(f"Monitor model name: {monitor.model_name}")
-        logging.info(f"Monitor model version ID: {monitor.model_version_id}")
-        logging.info(f"Monitor vars: {vars(monitor)}")
+    # # List all monitors and filter for the one matching our model
+    # monitors = ml_monitoring.ModelMonitor.list()
+    # 
+    # target_monitor = None
+    # # model_resource_name_no_version = model.resource_name.split("@")[0]
+    # for monitor in monitors:
+    #     # The monitor's target model resource name (without version)
+    #     logging.info(f"Monitor vars: {vars(monitor)}")
+    #     logging.info(f"Checking monitor: {monitor.resource_name}")
+    #     monitor_model_resource_name = monitor._gca_resource.model_monitoring_target.vertex_model.model
+    #     monitor_model_version_id = monitor._gca_resource.model_monitoring_target.vertex_model.model_version_id
+    #     logging.info(f"Monitor model resource name: {monitor_model_resource_name}")
+    #     logging.info(f"Monitor model version id: {monitor_model_version_id}")
 
-        if monitor.model_name.endswith(model_obj.resource_name) and monitor.model_version_id == model_version_id:
-            target_monitor = monitor
-            break
+    #     if model.resource_name == monitor_model_resource_name and model.version_id == monitor_model_version_id:
+    #         target_monitor = monitor
+    #         logging.info(f"Found matching monitor: {target_monitor.resource_name}")
+    #         break
 
-    if not target_monitor:
-        logging.warning(
-            f"No model monitor found for model '{model_resource_name}' "
-            f"with version '{model_version_id}'. Skipping monitoring job."
-        )
+    # if not target_monitor:
+    #     logging.warning(f"No model monitor found for model '{model_resource_name_with_version}'. Skipping monitoring job.")
+    #     return
+
+    # Build a filter to find the specific monitor
+    filter_str = (
+        f'model_monitoring_target.vertex_model.model="{model.resource_name}" AND '
+        f'model_monitoring_target.vertex_model.model_version_id="{model.version_id}"'
+    )
+    logging.info(f"Using filter to find monitor: {filter_str}")
+    monitors = ml_monitoring.ModelMonitor.list(filter=filter_str)
+
+    if not monitors:
+        logging.warning(f"No model monitor found for model '{model_resource_name_with_version}'. Skipping monitoring job.")
         return
+    
+    if len(monitors) > 1:
+        raise ValueError(f"Found {len(monitors)} monitors for model version {model_resource_name_with_version}. Expected only 1.")
+
+    target_monitor = monitors[0]
 
     logging.info(f"Found model monitor: {target_monitor.resource_name}")
 
     target_dataset = ml_monitoring.spec.MonitoringInput(
-        gcs_uri=prediction_results_gcs_uri,
+        gcs_uri=predictions.uri,
         data_format=prediction_results_format,
     )
 
-    logging.info(f"Starting monitoring job '{job_display_name}' for target data: {prediction_results_gcs_uri}")
+    logging.info(f"Starting monitoring job '{job_display_name}' for target data: {predictions.uri}")
 
     # This is an async call
     monitoring_job = target_monitor.run(

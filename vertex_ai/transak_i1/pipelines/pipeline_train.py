@@ -3,6 +3,7 @@ import sys
 import time
 from kfp import dsl,compiler
 from google.cloud import aiplatform
+from google.cloud import storage
 from pipelines.components.data_splits import data_splits_op
 from pipelines.components.trainer import train_model_op
 from pipelines.components.register import register_model_op
@@ -36,6 +37,7 @@ if not all([PROJECT_ID, REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME, NOTI
         "The following environment variables must be set: VERTEX_PROJECT_ID, VERTEX_REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME, NOTIFICATION_CHANNEL"
     )
 PIPELINE_ROOT = f"{PIPELINE_BUCKET}/pipelines/{PIPELINE_NAME}"
+PIPELINE_TEMPLATE_GCS_PATH = f"{PIPELINE_ROOT}/{PIPELINE_NAME}.json"
 EXPERIMENT_NAME = f"{PIPELINE_NAME}-experiment"
 PIPELINE_JOB_NAME = f"{PIPELINE_NAME}-job"
 
@@ -240,6 +242,15 @@ if __name__ == "__main__":
         }
     )
     print(f"Pipeline compiled successfully to {package_path}")
+
+    # Upload the compiled pipeline to GCS
+    bucket_name = PIPELINE_BUCKET.replace("gs://", "")
+    blob_path = PIPELINE_TEMPLATE_GCS_PATH.replace(f"gs://{bucket_name}/", "")
+    storage_client = storage.Client(project=PROJECT_ID)
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(blob_path)
+    blob.upload_from_filename(package_path)
+    print(f"Compiled pipeline uploaded to {PIPELINE_TEMPLATE_GCS_PATH}")
 
     if mode == "submit":
         aiplatform.init(
