@@ -27,7 +27,7 @@ variable "gs_notifications" {
         "revolut" = {
             bucket = "banks"
             object_name_prefix = "raw/revolut/_SUCCESS"
-            topic = "ps-predict-i1"
+            topic = "ps-i1-predict"
         }
         "ubs" = {
             bucket = "banks"
@@ -234,14 +234,19 @@ variable "views" {
 variable "topics" {
     description = "PubSub Topics"
     default = {
-        "ps-predict-i1" = {
+        "ps-transform-csv" = {
             labels = {
                 "publisher" = "gs"
             }
         }
-        "ps-transform-csv" = {
+        "ps-i1-predict" = {
             labels = {
                 "publisher" = "gs"
+            }
+        }
+        "ps-i1-train" = {
+            labels = {
+                "publisher" = "monitoring"
             }
         }
     }
@@ -256,6 +261,9 @@ variable "subscriptions" {
         "ps-transform-csv-sub-debug" = {
             topic = "ps-transform-csv"
         }
+        "ps-i1-predict-sub-debug" = {
+            topic = "ps-i1-predict"
+        }
     }
 }
 
@@ -264,31 +272,19 @@ variable "bindings" {
       "gs--ps-transform-csv" = {
           topic = "ps-transform-csv"
       }
-      "gs--ps-predict-i1" = {
-          topic = "ps-predict-i1"
+      "gs--ps-i1-predict" = {
+          topic = "ps-i1-predict"
+      }
+      "gs--ps-i1-train" = {
+          topic = "ps-i1-train"
       }
   }
 }
 
 variable "cf_names" {
     description = "Google Cloud Functions"
-    # type = map(object({
-    #     gen = optional(number, 1)
-    #     trigger_type = string
-    #     labels = optional(map(string), {})
-    #     memory = optional(string, "256Mi")
-    #     max_instances = optional(number, 5)
-    #     min_instances = optional(number, 0)
-    #     timeout = optional(number, 60)
-    #     entry_point = optional(string, "main")
-    #     runtime = optional(string, "python39")
-    #     name = optional(string)
-    #     region = optional(string)
-    #     pipeline_name = optional(string)
-    #     env = optional(map(string), {}) # New env attribute
-    # }))
     default = {
-        "cf-predict-i1" = {
+        "cf-i1-predict" = {
             gen = 2
             trigger_type = "pubsub"
             labels = {"publisher" = "gs"}
@@ -296,6 +292,18 @@ variable "cf_names" {
             env = {
                 PIPELINE_BUCKET = "gs://af-finanzen-mlops"
                 PIPELINE_NAME = "transak-i1-predict"
+            }
+        }
+        "cf-i1-train" = {
+            gen = 2
+            trigger_type = "pubsub"
+            labels = {"publisher" = "monitoring"}
+            memory = "512Mi"
+            env = {
+                PROJECT_ID = "af-finanzen"
+                REGION = "europe-west6"
+                PIPELINE_BUCKET = "gs://af-finanzen-mlops"
+                PIPELINE_NAME = "transak-i1-train"
             }
         }
         "cf-transform-csv" = {

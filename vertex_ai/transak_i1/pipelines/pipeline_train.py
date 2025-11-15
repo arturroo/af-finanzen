@@ -3,6 +3,7 @@ import sys
 import time
 from kfp import dsl,compiler
 from google.cloud import aiplatform
+from google.cloud import storage
 from pipelines.components.data_splits import data_splits_op
 from pipelines.components.trainer import train_model_op
 from pipelines.components.register import register_model_op
@@ -15,6 +16,9 @@ from google_cloud_pipeline_components.v1.bigquery import BigqueryQueryJobOp
 from src.common.base_sql import train_data_query
 from pipelines.components.get_production_model import get_production_model_op
 from pipelines.components.bless_or_not_to_bless import bless_or_not_to_bless_op
+from pipelines.components.create_monitoring_baseline import create_monitoring_baseline_op
+from pipelines.components.setup_monitoring import setup_monitoring_op
+from typing import List
 
 
 # Define Your Pipeline Configuration
@@ -24,11 +28,16 @@ PIPELINE_BUCKET = os.getenv("VERTEX_BUCKET") # gcs bucket for pipeline artifacts
 TENSORBOARD_RESOURCE_NAME = os.getenv("TENSORBOARD_RESOURCE_NAME")
 PIPELINE_NAME = os.getenv("PIPELINE_NAME", "transak-i1-train")
 SERVING_CONTAINER_IMAGE_URI = os.getenv("SERVING_CONTAINER_IMAGE_URI", "europe-docker.pkg.dev/vertex-ai-restricted/prediction/tf_opt-cpu.2-17:latest")
-if not all([PROJECT_ID, REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME]):
+NOTIFICATION_CHANNEL = os.getenv("NOTIFICATION_CHANNEL")
+USER_EMAILS = list(os.getenv("USER_EMAILS", "artur.fejklowicz@gmail.com").split(","))
+
+
+if not all([PROJECT_ID, REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME, NOTIFICATION_CHANNEL]):
     raise ValueError(
-        "The following environment variables must be set: VERTEX_PROJECT_ID, VERTEX_REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME"
+        "The following environment variables must be set: VERTEX_PROJECT_ID, VERTEX_REGION, PIPELINE_BUCKET, TENSORBOARD_RESOURCE_NAME, NOTIFICATION_CHANNEL"
     )
 PIPELINE_ROOT = f"{PIPELINE_BUCKET}/pipelines/{PIPELINE_NAME}"
+PIPELINE_TEMPLATE_GCS_PATH = f"{PIPELINE_ROOT}/{PIPELINE_NAME}.json"
 EXPERIMENT_NAME = f"{PIPELINE_NAME}-experiment"
 PIPELINE_JOB_NAME = f"{PIPELINE_NAME}-job"
 
@@ -54,6 +63,8 @@ def transak_i1_pipeline_train(
     serving_container_image_uri: str = SERVING_CONTAINER_IMAGE_URI, # type: ignore
     experiment_name: str = EXPERIMENT_NAME, # type: ignore
     run_name: str = PIPELINE_JOB_NAME, # type: ignore
+    notification_channel: str = NOTIFICATION_CHANNEL, # type: ignore
+    user_emails: List[str] = USER_EMAILS, # type: ignore
 ):
     """Defines the sequence of operations in the pipeline. Pipeline orchestrator will execute them."""
     # 1. Generate BigQuery job configuration
@@ -64,6 +75,15 @@ def transak_i1_pipeline_train(
         table_name_prefix="golden_data"
     )
     bq_config_generator.set_display_name("Generate BQ Config")
+
+    # 2. Get golden data from BigQuery
+    golden_data = BigqueryQueryJobOp(
+        project=project_id,
+        location=REGION,
+        query=train_data_query(),
+        job_configuration_query=bq_config_generator.output,
+    )
+    golden_data.set_display_name("Get Golden Data")
 
     # 2. Train, val, test split
     data_splits = data_splits_op( # type: ignore
@@ -93,13 +113,11 @@ def transak_i1_pipeline_train(
     # 4. Model Registration
     register_model = register_model_op( # type: ignore
         model=train_model.outputs['output_model'],
-        train_data_uri=data_splits.outputs['train_data'].uri,
         model_display_name=f"{PIPELINE_NAME}-model",
         serving_container_image_uri=serving_container_image_uri,
         project_id=project_id,
         region=REGION,
         experiment_name=experiment_name,
-        disable_cache2=True
     )
     register_model.set_display_name("Register Model")
 
@@ -174,11 +192,38 @@ def transak_i1_pipeline_train(
         )
         bless_model.set_display_name("Bless Model")
 
+        # Create monitoring baseline
+        batch_predict_monitoring = batch_predict_op(
+            project=project_id,
+            location=REGION,
+            vertex_model=register_model.outputs['candidate_model'],
+            test_data=data_splits.outputs['train_data'],  # Use training data for baseline
+            experiment_name=experiment_name,
+        )
+        batch_predict_monitoring.set_display_name("Batch Predict: Monitoring Baseline")
+
+        create_baseline = create_monitoring_baseline_op(
+            predictions_artifact=batch_predict_monitoring.outputs['predictions']
+        )
+        create_baseline.set_display_name("Create Monitoring Baseline")
+
+        # Setup monitoring
+        setup_monitoring = setup_monitoring_op(
+            project=project_id,
+            location=REGION,
+            vertex_model=register_model.outputs['candidate_model'],
+            baseline_dataset=create_baseline.outputs['monitoring_baseline'],
+            notification_channel=notification_channel,
+            user_emails=user_emails,
+            display_name_prefix=f"{PIPELINE_NAME}-monitor"
+        )
+        setup_monitoring.set_display_name("Setup Model Monitoring")
+
     
 
 # Compile and Run the Pipeline
 if __name__ == "__main__":
-    mode = sys.argv[1] if len(sys.argv) > 1 else "submit"
+    mode = sys.argv[1] if len(sys.argv) > 1 else "compile"
     package_path = f"{PIPELINE_NAME}.json"
     experiment_name = EXPERIMENT_NAME
     local_time = time.strftime("%Y%m%d%H%M%S", time.localtime())
@@ -192,9 +237,20 @@ if __name__ == "__main__":
         pipeline_parameters={
             "project_id": PROJECT_ID,
             "target_column": "i1_true_label_id",
+            "user_emails": USER_EMAILS,
+            "notification_channel": NOTIFICATION_CHANNEL,
         }
     )
     print(f"Pipeline compiled successfully to {package_path}")
+
+    # Upload the compiled pipeline to GCS
+    bucket_name = PIPELINE_BUCKET.replace("gs://", "")
+    blob_path = PIPELINE_TEMPLATE_GCS_PATH.replace(f"gs://{bucket_name}/", "")
+    storage_client = storage.Client(project=PROJECT_ID)
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(blob_path)
+    blob.upload_from_filename(package_path)
+    print(f"Compiled pipeline uploaded to {PIPELINE_TEMPLATE_GCS_PATH}")
 
     if mode == "submit":
         aiplatform.init(

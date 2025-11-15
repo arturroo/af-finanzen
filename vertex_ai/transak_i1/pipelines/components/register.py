@@ -9,14 +9,12 @@ from google.cloud import aiplatform
 def register_model_op(
     # --- Component Inputs ---
     model: Input[Model],
-    train_data_uri: str,
     candidate_model: Output[VertexModel],
     model_display_name: str,
     serving_container_image_uri: str,
     project_id: str,
     region: str,
     experiment_name: str,
-    disable_cache2: bool = False,
 ):
     from google.cloud import aiplatform
     print(f"Initializing AI Platform for project {project_id} in {region}...")
@@ -38,7 +36,6 @@ def register_model_op(
 
     description = (
         "Wide & Deep transaction classifier trained via a Vertex AI Pipeline.\n"
-        f"Training data URI: {train_data_uri}"
     )
 
     # Upload the model to Vertex AI Model Registry

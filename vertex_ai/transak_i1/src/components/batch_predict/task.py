@@ -68,7 +68,7 @@ def main():
     # 6. Format and save predictions as a JSONL file
     # The predictions_path is now expected to be a directory.
     # We will create a file inside this directory with the required prefix.
-    output_file_name = 'prediction.results-00000-of-00001' # Adhering to Vertex AI evaluation component requirements
+    output_file_name = 'prediction.results-00000-of-00001.jsonl' # Adhering to Vertex AI evaluation component requirements
     output_file_path = os.path.join(args.predictions_path, output_file_name)
     os.makedirs(args.predictions_path, exist_ok=True)
 

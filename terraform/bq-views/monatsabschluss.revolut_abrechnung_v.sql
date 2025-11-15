@@ -61,8 +61,8 @@ SELECT
   , account
   , month
   , first_started
-  , true_label i0_true_label
-  , pred_label i0_pred_label
+  , NULL i0_true_label
+  , NULL i0_pred_label
   , i0_new_label
   , i1_true_label
   , status
@@ -85,8 +85,8 @@ SELECT
   , account
   , month
   , first_started
-  , true_label i0_true_label
-  , pred_label i0_pred_label
+  , NULL i0_true_label
+  , NULL i0_pred_label
   , i0_new_label
   , i1_true_label
   , status

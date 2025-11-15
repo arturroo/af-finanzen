@@ -109,6 +109,7 @@ def data_splits_op(
           ELSE "unknown"
         END AS split_set
     FROM `{fqtn}`
+    -- WHERE i1_true_label IS NOT NULL AND i1_true_label != ''
     """
     bq_client = bigquery.Client(project=project_id)
     print(f"Running query: {query}")

@@ -9,6 +9,7 @@ from pipelines.components.prediction_config_generator import prediction_config_g
 from pipelines.components.get_prediction_data import get_prediction_data_op
 from pipelines.components.get_production_model import get_production_model_op
 from pipelines.components.batch_predict import batch_predict_op
+from pipelines.components.run_monitoring import run_monitoring_op
 from pipelines.components.save_predictions import save_predictions_op
 from src.common.base_sql import predict_data_query
 
@@ -49,17 +50,16 @@ def transak_i1_pipeline_predict(
     # model_name = "transak-i1-train-model"
     # month = "202508"
     print(f"Starting pipeline for month: {month}")
-    """Defines the sequence of operations in the pipeline. Pipeline orchestrator will execute them."""
-    # 1. Prediction Config Generator
-    prediction_config = prediction_config_generator_op( # type: ignore
-        month=month,
-    )
-    prediction_config.set_display_name("Generate Prediction Config")
+    # # 1. Prediction Config Generator
+    # prediction_config = prediction_config_generator_op( # type: ignore
+    #     month=month,
+    # )
+    # prediction_config.set_display_name("Generate Prediction Config")
 
     # 2. Get Prediction Data
     get_prediction_data = get_prediction_data_op( # type: ignore
         project_id=project_id,
-        month=prediction_config.output,
+        month=month,
         query=predict_data_query()
     )
     get_prediction_data.set_display_name("Get Prediction Data")
@@ -91,6 +91,19 @@ def transak_i1_pipeline_predict(
         pipeline_run_id=dsl.PIPELINE_JOB_NAME_PLACEHOLDER,
     )
     save_predictions.set_display_name("Save Predictions")
+
+    # 6. Run Monitoring
+    run_monitoring = run_monitoring_op( # type: ignore
+        project=project_id,
+        location=region,
+        vertex_model=get_prod_model.outputs["production_model"],
+        # prediction_table=save_predictions.outputs["bigquery_prediction_table"],
+        job_display_name=f"transak-i1-monitor-{month}",
+        month=month,
+        query_template=predict_data_query()
+    )
+    #run_monitoring.after(save_predictions)
+    run_monitoring.set_display_name("Run Model Monitoring")
 
 
 

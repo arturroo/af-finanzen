@@ -81,7 +81,7 @@ def start(event, context):
         parameter_values={
             "month": month
         },
-        enable_caching=True
+        enable_caching=False
     )
 
     # 5. Submit the pipeline job for execution

@@ -169,3 +169,14 @@ resource "google_vertex_ai_tensorboard" "default" {
   project      = var.project_id
   region       = "europe-west6"
 }
+
+
+
+resource "google_monitoring_notification_channel" "i1-drift_retraining_channel" {
+  project      = var.project_id
+  display_name = "Pub/Sub Channel for Model Drift Retraining"
+  type         = "pubsub"
+  labels = {
+    topic = module.pubsub.topics["ps-i1-train"].id
+  }
+}
