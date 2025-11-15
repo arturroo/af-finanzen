@@ -49,45 +49,37 @@ def run_monitoring_op(
     logging.info(f"Model resource name: {model.resource_name}")
     logging.info(f"Model version id: {model.version_id}")
 
-    # # List all monitors and filter for the one matching our model
-    # monitors = ml_monitoring.ModelMonitor.list()
-    # 
-    # target_monitor = None
-    # # model_resource_name_no_version = model.resource_name.split("@")[0]
-    # for monitor in monitors:
-    #     # The monitor's target model resource name (without version)
-    #     logging.info(f"Monitor vars: {vars(monitor)}")
-    #     logging.info(f"Checking monitor: {monitor.resource_name}")
-    #     monitor_model_resource_name = monitor._gca_resource.model_monitoring_target.vertex_model.model
-    #     monitor_model_version_id = monitor._gca_resource.model_monitoring_target.vertex_model.model_version_id
-    #     logging.info(f"Monitor model resource name: {monitor_model_resource_name}")
-    #     logging.info(f"Monitor model version id: {monitor_model_version_id}")
+    # # Build a filter to find the specific monitor
+    # # NOTE: The API does not support filtering by model resource name directly.
+    # filter_str = (
+    #     f'model_monitoring_target.vertex_model.model="{model.resource_name}" AND '
+    #     f'model_monitoring_target.vertex_model.model_version_id="{model.version_id}"'
+    # )
+    # logging.info(f"Using filter to find monitor: {filter_str}")
+    # monitors = ml_monitoring.ModelMonitor.list(filter=filter_str)
 
-    #     if model.resource_name == monitor_model_resource_name and model.version_id == monitor_model_version_id:
-    #         target_monitor = monitor
-    #         logging.info(f"Found matching monitor: {target_monitor.resource_name}")
-    #         break
+    # The API does not support filtering by model resource name directly.
+    # We must list all monitors and filter them client-side.
+    monitors = ml_monitoring.ModelMonitor.list()
+    
+    found_monitors = []
+    for monitor in monitors:
+        # The monitor's target model resource name (without version)
+        monitor_model_resource_name = monitor._gca_resource.model_monitoring_target.vertex_model.model
+        monitor_model_version_id = monitor._gca_resource.model_monitoring_target.vertex_model.model_version_id
 
-    # if not target_monitor:
-    #     logging.warning(f"No model monitor found for model '{model_resource_name_with_version}'. Skipping monitoring job.")
-    #     return
+        if model.resource_name == monitor_model_resource_name and model.version_id == monitor_model_version_id:
+            found_monitors.append(monitor)
+            logging.info(f"Found matching monitor: {monitor.resource_name}")
 
-    # Build a filter to find the specific monitor
-    filter_str = (
-        f'model_monitoring_target.vertex_model.model="{model.resource_name}" AND '
-        f'model_monitoring_target.vertex_model.model_version_id="{model.version_id}"'
-    )
-    logging.info(f"Using filter to find monitor: {filter_str}")
-    monitors = ml_monitoring.ModelMonitor.list(filter=filter_str)
-
-    if not monitors:
+    if not found_monitors:
         logging.warning(f"No model monitor found for model '{model_resource_name_with_version}'. Skipping monitoring job.")
         return
-    
-    if len(monitors) > 1:
-        raise ValueError(f"Found {len(monitors)} monitors for model version {model_resource_name_with_version}. Expected only 1.")
 
-    target_monitor = monitors[0]
+    if len(found_monitors) > 1:
+        raise ValueError(f"Found {len(found_monitors)} monitors for model version {model_resource_name_with_version}. Expected only 1.")
+
+    target_monitor = found_monitors[0]
 
     logging.info(f"Found model monitor: {target_monitor.resource_name}")
 
@@ -103,6 +95,7 @@ def run_monitoring_op(
         display_name=job_display_name,
         target_dataset=target_dataset,
     )
+    monitoring_job.wait()
 
     logging.info(f"Successfully launched monitoring job: {monitoring_job.resource_name}")
     logging.info(f"View job details in the console: {monitoring_job._dashboard_uri()}")
