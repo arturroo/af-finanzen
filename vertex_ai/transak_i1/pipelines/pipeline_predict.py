@@ -97,9 +97,10 @@ def transak_i1_pipeline_predict(
         project=project_id,
         location=region,
         vertex_model=get_prod_model.outputs["production_model"],
-        predictions=batch_predict_production.outputs["predictions"],
-        prediction_results_format="jsonl",
+        # prediction_table=save_predictions.outputs["bigquery_prediction_table"],
         job_display_name=f"transak-i1-monitor-{month}",
+        month=month,
+        query_template=predict_data_query()
     )
     #run_monitoring.after(save_predictions)
     run_monitoring.set_display_name("Run Model Monitoring")
