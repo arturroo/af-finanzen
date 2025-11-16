@@ -203,7 +203,8 @@ def transak_i1_pipeline_train(
         batch_predict_monitoring.set_display_name("Batch Predict: Monitoring Baseline")
 
         create_baseline = create_monitoring_baseline_op(
-            predictions_artifact=batch_predict_monitoring.outputs['predictions']
+            predictions_artifact=batch_predict_monitoring.outputs['predictions'],
+            class_labels=data_splits.outputs['class_labels'],
         )
         create_baseline.set_display_name("Create Monitoring Baseline")
 

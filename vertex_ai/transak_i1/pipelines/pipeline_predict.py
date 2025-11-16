@@ -11,7 +11,7 @@ from pipelines.components.get_production_model import get_production_model_op
 from pipelines.components.batch_predict import batch_predict_op
 from pipelines.components.run_monitoring import run_monitoring_op
 from pipelines.components.save_predictions import save_predictions_op
-from src.common.base_sql import predict_data_query
+from src.common.base_sql import predict_data_query, monitoring_query
 
 
 # Define Your Pipeline Configuration
@@ -100,7 +100,7 @@ def transak_i1_pipeline_predict(
         # prediction_table=save_predictions.outputs["bigquery_prediction_table"],
         job_display_name=f"transak-i1-monitor-{month}",
         month=month,
-        query_template=predict_data_query()
+        query_template=monitoring_query()
     )
     #run_monitoring.after(save_predictions)
     run_monitoring.set_display_name("Run Model Monitoring")

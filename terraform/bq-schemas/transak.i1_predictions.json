@@ -2,101 +2,121 @@
   {
     "name": "tid",
     "type": "INTEGER",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "type",
     "type": "STRING",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "started_year",
     "type": "INTEGER",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "started_month",
     "type": "INTEGER",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "started_day",
     "type": "INTEGER",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "started_weekday",
     "type": "INTEGER",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "first_started_year",
     "type": "INTEGER",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "first_started_month",
     "type": "INTEGER",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "first_started_day",
     "type": "INTEGER",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "first_started_weekday",
     "type": "INTEGER",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "description",
     "type": "STRING",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "amount",
     "type": "FLOAT",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "currency",
     "type": "STRING",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Input Feature"
   },
   {
     "name": "i1_pred_label_id",
     "type": "INTEGER",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Predicted label id"
   },
   {
     "name": "logits",
     "type": "FLOAT",
-    "mode": "REPEATED"
+    "mode": "REPEATED",
+    "description": "Prediction raw output from model's last layer \"combined_logits\""
   },
   {
     "name": "probas",
     "type": "FLOAT",
-    "mode": "REPEATED"
+    "mode": "REPEATED",
+    "description": "Prediction softmax probabilities array"
   },
   {
     "name": "confidence_msp",
     "type": "FLOAT",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Prediction confidence - max softmax probability"
   },
   {
     "name": "confidence_margin",
     "type": "FLOAT",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Prediction confidence - difference between the highest and second-highest softmax probabilities"
   },
   {
     "name": "confidence_entropy",
     "type": "FLOAT",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Prediction confidence - entropy of the softmax probability distribution"
   },
   {
     "name": "pipeline_run_url",
     "type": "STRING",
-    "mode": "NULLABLE"
+    "mode": "NULLABLE",
+    "description": "Prediction pipeline's run URL in the Vertex AI, that generated this prediction"
   }
 ]

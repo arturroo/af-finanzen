@@ -58,9 +58,26 @@ def setup_monitoring_op(
     # Define Monitoring Schema
     monitoring_schema = ml_monitoring.spec.ModelMonitoringSchema(
         feature_fields=[
+            # ml_monitoring.spec.FieldSchema(name="tid", data_type="numerical"),
             ml_monitoring.spec.FieldSchema(name="type", data_type="categorical"),
+            # ml_monitoring.spec.FieldSchema(name="started_year", data_type="integer"),
+            # ml_monitoring.spec.FieldSchema(name="started_month", data_type="integer"),
+            # ml_monitoring.spec.FieldSchema(name="started_day", data_type="integer"),
+            ml_monitoring.spec.FieldSchema(name="started_weekday", data_type="integer"),
+            # ml_monitoring.spec.FieldSchema(name="first_started_year", data_type="integer"),
+            # ml_monitoring.spec.FieldSchema(name="first_started_month", data_type="integer"),
+            # ml_monitoring.spec.FieldSchema(name="first_started_day", data_type="integer"),
+            # ml_monitoring.spec.FieldSchema(name="first_started_weekday", data_type="integer"),
             ml_monitoring.spec.FieldSchema(name="description", data_type="categorical"),
+            ml_monitoring.spec.FieldSchema(name="amount", data_type="float"),
+            # ml_monitoring.spec.FieldSchema(name="currency", data_type="categorical"),
         ],
+        prediction_fields=[
+            ml_monitoring.spec.FieldSchema(name="i1_pred_label", data_type="categorical")
+        ],
+        ground_truth_fields=[
+            ml_monitoring.spec.FieldSchema(name="i1_true_label", data_type="categorical")
+        ]
     )
 
     # Define Training Dataset
@@ -69,10 +86,20 @@ def setup_monitoring_op(
         data_format="csv",
     )
 
-    # Define Data Drift Spec
+    # Define Data Drift Spec for features
     feature_drift_spec = ml_monitoring.spec.DataDriftSpec(
         categorical_metric_type="l_infinity",
+        numeric_metric_type="jensen_shannon_divergence",
         default_categorical_alert_threshold=0.3,
+        default_numeric_alert_threshold=0.3,
+    )
+
+    # Define Data Drift Spec for predictions
+    prediction_output_drift_spec = ml_monitoring.spec.DataDriftSpec(
+        categorical_metric_type="l_infinity",
+        #numeric_metric_type="jensen_shannon_divergence",
+        default_categorical_alert_threshold=0.3,
+        #default_numeric_alert_threshold=0.3,
     )
 
     # Define Notification Spec
@@ -93,7 +120,8 @@ def setup_monitoring_op(
             model_monitoring_schema=monitoring_schema,
             training_dataset=training_dataset,
             tabular_objective_spec=ml_monitoring.spec.TabularObjective(
-                feature_drift_spec=feature_drift_spec
+                feature_drift_spec=feature_drift_spec,
+                prediction_output_drift_spec=prediction_output_drift_spec,
             ),
             notification_spec=notification_spec,
         )

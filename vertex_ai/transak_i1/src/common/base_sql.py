@@ -66,3 +66,49 @@ def predict_data_query() -> str:
         {get_common_where_sql()}
         AND month = {{month_placeholder}}
     """
+
+def get_monitoring_feature_selection_sql() -> str:
+    """Returns the feature selection part of the monitoring query."""
+    return "SELECT t1.*"
+
+def get_monitoring_label_selection_sql() -> str:
+    """Returns the label selection part of the monitoring query."""
+    return ", t2.name AS i1_pred_label"
+
+def get_monitoring_from_sql() -> str:
+    """Returns the FROM and JOIN clauses for the monitoring query."""
+    return """
+        FROM `af-finanzen.transak.i1_predictions` AS t1
+        LEFT JOIN `af-finanzen.transak.i1_labels` AS t2 ON t1.i1_pred_label_id = t2.id
+    """
+
+def get_monitoring_where_sql() -> str:
+    """Returns the WHERE clause for the monitoring query."""
+    return """
+        WHERE t1.started_year = DIV({month_placeholder}, 100)
+          AND t1.started_month = MOD({month_placeholder}, 100)
+    """
+
+def monitoring_query() -> str:
+    """
+    Returns the full query for fetching prediction data for monitoring.
+    Combines modular SQL parts into a single query.
+    """
+    return f"""
+        {get_monitoring_feature_selection_sql()}
+        {get_monitoring_label_selection_sql()}
+        {get_monitoring_from_sql()}
+        {get_monitoring_where_sql()}
+    """
+
+def labels_query() -> str:
+    """
+    Returns the SQL query for fetching the label mapping from the i1_labels table.
+    """
+    return """
+        SELECT
+            id,
+            name
+        FROM
+            `af-finanzen.transak.i1_labels`
+    """
