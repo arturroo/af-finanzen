@@ -3,7 +3,7 @@ from google_cloud_pipeline_components.types.artifact_types import BQTable
 
 @component(
     base_image='python:3.9',
-    packages_to_install=["pandas", "google-cloud-bigquery", "google-cloud-storage", "db-dtypes", "pyarrow", "fsspec", "gcsfs", "google_cloud_pipeline_components"],
+    packages_to_install=["pandas==2.2.2", "google_cloud_pipeline_components==2.20.1", "db-dtypes", "pyarrow", "google-cloud-bigquery"],
 )
 def save_predictions_op(
     predictions: Input[Artifact],
@@ -12,16 +12,15 @@ def save_predictions_op(
     region: str,
     bigquery_prediction_table_fqtn: str,
     pipeline_run_id: str,
+    month: int,
 ):
     """
     A component that saves batch predictions to a BigQuery table.
     """
     import pandas as pd
     from google.cloud import bigquery
-    import json
     import numpy as np
     from pathlib import Path
-    import os
     import math
 
     # --- Helper Functions ---
@@ -100,6 +99,7 @@ def save_predictions_op(
     else:
         pipeline_run_url = f"https://console.cloud.google.com/vertex-ai/pipelines/locations/{region}/runs/{pipeline_run_id}?project={project_id}"
     results_df["pipeline_run_url"] = pipeline_run_url
+    results_df["month"] = month
 
     # Save the predictions to BigQuery
     bq_client = bigquery.Client(project=project_id)

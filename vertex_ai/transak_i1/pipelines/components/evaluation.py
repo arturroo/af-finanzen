@@ -40,7 +40,6 @@ def model_evaluation_op(
     to the Vertex AI Model Registry.
     """
     import json
-    import os
     from pathlib import Path
     import numpy as np
     import pandas as pd

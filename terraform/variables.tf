@@ -110,6 +110,11 @@ variable "internal_tables" {
             dataset_id = "transak"
             schema = "bq-schemas/transak.i1_vectorizers.json"
         }
+        "i1_labels" = {
+            description = "Transak class label mapping (ID to Name). Iteration 1 of agile plan."
+            dataset_id = "transak"
+            schema = "bq-schemas/transak.i1_labels.json"
+        }
     }
 }
 
@@ -263,6 +268,9 @@ variable "subscriptions" {
         }
         "ps-i1-predict-sub-debug" = {
             topic = "ps-i1-predict"
+        }
+        "ps-i1-train-sub-debug" = {
+            topic = "ps-i1-train"
         }
     }
 }

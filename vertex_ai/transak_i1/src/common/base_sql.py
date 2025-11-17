@@ -40,7 +40,10 @@ def get_predict_from_sql() -> str:
 
 def get_common_where_sql() -> str:
     return """
-        WHERE type NOT IN ('FEE', 'ATM')
+        WHERE 
+            type NOT IN ('FEE', 'ATM') -- less then 10 examples of each type
+            AND ABS(amount) < 900 -- outliers
+            -- AND month < 202501 -- only for demonstration purposes to train bad model
     """
 
 def train_data_query() -> str:
@@ -65,4 +68,49 @@ def predict_data_query() -> str:
         {get_predict_from_sql()}
         {get_common_where_sql()}
         AND month = {{month_placeholder}}
+    """
+
+def get_monitoring_feature_selection_sql() -> str:
+    """Returns the feature selection part of the monitoring query."""
+    return "SELECT PREDICTIONS.*"
+
+def get_monitoring_label_selection_sql() -> str:
+    """Returns the label selection part of the monitoring query."""
+    return ", LABELS.name AS i1_pred_label"
+
+def get_monitoring_from_sql() -> str:
+    """Returns the FROM and JOIN clauses for the monitoring query."""
+    return """
+        FROM `{table_placeholder}` AS PREDICTIONS
+        LEFT JOIN `af-finanzen.transak.i1_labels` AS LABELS ON PREDICTIONS.i1_pred_label_id = LABELS.id
+    """
+
+def get_monitoring_where_sql() -> str:
+    """Returns the WHERE clause for the monitoring query."""
+    return """
+        WHERE PREDICTIONS.month = {month_placeholder}
+    """
+
+def monitoring_query() -> str:
+    """
+    Returns the full query for fetching prediction data for monitoring.
+    Combines modular SQL parts into a single query.
+    """
+    return f"""
+        {get_monitoring_feature_selection_sql()}
+        {get_monitoring_label_selection_sql()}
+        {get_monitoring_from_sql()}
+        {get_monitoring_where_sql()}
+    """
+
+def labels_query() -> str:
+    """
+    Returns the SQL query for fetching the label mapping from the i1_labels table.
+    """
+    return """
+        SELECT
+            id,
+            name
+        FROM
+            `af-finanzen.transak.i1_labels`
     """

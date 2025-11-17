@@ -1,0 +1,14 @@
+[
+  {
+    "name": "id",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "The integer ID for the class label, used for model training and prediction."
+  },
+  {
+    "name": "name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "The human-readable string name of the class label."
+  }
+]
