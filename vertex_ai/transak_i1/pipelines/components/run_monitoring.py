@@ -2,16 +2,16 @@
 
 import logging
 
-from kfp.dsl import (Input, component)
+from kfp.dsl import (Input, Output, Artifact, component)
 from google_cloud_pipeline_components.types.artifact_types import VertexModel, BQTable
 
 # Artur Fejklowicz
-# 2025-11-15
+# 2025-11-17
 # __author__ = "Artur Fejklowicz"
 # __copyright__ = "Copyright 2025, The AF Finanzen Project"
 # __credits__ = ["Artur Fejklowicz"]
 # __license__ = "GPLv3"
-# __version__ = "1.3.0"
+# __version__ = "1.5.0"
 # __maintainer__ = "Artur Fejklowicz"
 # __status__ = "Production"
 
@@ -24,17 +24,18 @@ def run_monitoring_op(
     project: str,
     location: str,
     vertex_model: Input[VertexModel],
-    # prediction_table: Input[BQTable],
+    prediction_table: Input[BQTable],
     job_display_name: str,
     month: int,
     query_template: str,
+    anomalies: Output[Artifact],
 ):
     """
-    Initiates a model monitoring job using a BigQuery query as the target dataset.
+    Initiates a model monitoring job and outputs the URI to the anomalies file.
 
-    This component finds the ModelMonitor resource associated with the specific
-    production model version and triggers an asynchronous monitoring job to check
-    for data drift against the data for a specific month from the predictions table.
+    This component finds the ModelMonitor resource, triggers a monitoring job with a
+    predictable output path, and after completion, provides the GCS path to the
+    resulting anomalies.json file as an output artifact.
     """
     import logging
     from google.cloud import aiplatform
@@ -74,15 +75,18 @@ def run_monitoring_op(
     target_monitor = found_monitors[0]
     logging.info(f"Found model monitor: {target_monitor.resource_name}")
 
-    # # Construct the FQTN from the input artifact's metadata
-    # bq_project = prediction_table.metadata["projectId"]
-    # bq_dataset = prediction_table.metadata["datasetId"]
-    # bq_table = prediction_table.metadata["tableId"]
-    # bigquery_prediction_table_fqtn = f"{bq_project}.{bq_dataset}.{bq_table}"
+    # Construct the FQTN from the input artifact's metadata
+    bq_project = prediction_table.metadata["projectId"]
+    bq_dataset = prediction_table.metadata["datasetId"]
+    bq_table = prediction_table.metadata["tableId"]
+    bigquery_prediction_table_fqtn = f"{bq_project}.{bq_dataset}.{bq_table}"
 
     # Construct the BigQuery query for the specific month, performing the
     # date logic directly in SQL for easier testing.
-    query = query_template.format(month_placeholder=month)
+    query = query_template.format(
+        month_placeholder=month,
+        table_placeholder=bigquery_prediction_table_fqtn
+    )
 
     # query = f"""
     # SELECT *
@@ -98,16 +102,42 @@ def run_monitoring_op(
         data_format="bigquery",
     )
 
+    # Define a predictable output directory for the monitoring job.
+    # TODO: Make the base URI a component input parameter for more flexibility.
+    # monitoring_output_base_uri = "gs://af-finanzen-mlops/monitoring"
+    # output_uri = f"{monitoring_output_base_uri}/{job_display_name}"
+    # logging.info(f"Monitoring job output will be saved to: {output_uri}")
+    # output_spec = ml_monitoring.spec.OutputSpec(gcs_base_dir=output_uri)
+    output_spec = ml_monitoring.spec.OutputSpec(gcs_base_dir=anomalies.uri)
+
     logging.info(f"Starting monitoring job '{job_display_name}' for target data from BigQuery query.")
 
     # This is an async call
     monitoring_job = target_monitor.run(
         display_name=job_display_name,
         target_dataset=target_dataset,
+        output_spec=output_spec,
     )
     monitoring_job.wait()
 
-    logging.info(f"Successfully launched monitoring job: {monitoring_job.resource_name}")
+    logging.info(f"Successfully launched and completed monitoring job: {monitoring_job.resource_name}")
+
+    # Extract the monitoring job ID from its resource name
+    # Example: projects/123/locations/europe-west6/modelMonitors/456/modelMonitoringJobs/789
+    monitoring_job_id = monitoring_job.resource_name.split('/')[-1]
+
+    # The anomalies file will be created at a predictable path based on the output_spec.
+    # The actual path includes the job ID and 'feature_drift' objective.
+    logging.info(f"target_monitor vars: {vars(target_monitor)}")
+    
+    monitor_id = target_monitor.resource_name.split('/')[-1]
+    logging.info(f"monitor_id: {monitor_id}")
+    logging.info(f"monitoring_job_id: {monitoring_job_id}")
+
+    anomalies_file_uri = f"{anomalies.uri}/{target_monitor.name}/model_monitoring/{monitor_id}/tabular/jobs/{monitoring_job_id}/feature_drift/anomalies.json"
+    # anomalies.uri = anomalies_file_uri
+    logging.info(f"Anomalies file URI: {anomalies_file_uri}")
+
     # The _dashboard_uri() attribute is not available. Constructing the URL manually.
     dashboard_uri = (
         f"https://console.cloud.google.com/vertex-ai/locations/{location}/"

@@ -13,7 +13,7 @@ from pipelines.components.evaluation import model_evaluation_op
 from pipelines.components.get_production_model import get_production_model_op
 from pipelines.components.batch_predict import batch_predict_op
 from google_cloud_pipeline_components.v1.bigquery import BigqueryQueryJobOp
-from src.common.base_sql import train_data_query
+from src.common.base_sql import train_data_query, labels_query
 from pipelines.components.get_production_model import get_production_model_op
 from pipelines.components.bless_or_not_to_bless import bless_or_not_to_bless_op
 from pipelines.components.create_monitoring_baseline import create_monitoring_baseline_op
@@ -203,8 +203,10 @@ def transak_i1_pipeline_train(
         batch_predict_monitoring.set_display_name("Batch Predict: Monitoring Baseline")
 
         create_baseline = create_monitoring_baseline_op(
+            project_id=project_id,
             predictions_artifact=batch_predict_monitoring.outputs['predictions'],
-            class_labels=data_splits.outputs['class_labels'],
+            # class_labels=data_splits.outputs['class_labels'],
+            labels_query=labels_query()
         )
         create_baseline.set_display_name("Create Monitoring Baseline")
 
@@ -285,7 +287,7 @@ if __name__ == "__main__":
                     "target_column": "i1_true_label_id",
                 },
                 # enable_caching=False  # Disable caching to ensure all new code runs
-                enable_caching=True  # Enable caching to skip already executed steps
+                enable_caching=False  # Enable caching to skip already executed steps
             )
 
             print(f"Submitting pipeline job '{PIPELINE_NAME}' to Vertex AI...")

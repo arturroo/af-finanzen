@@ -269,6 +269,9 @@ variable "subscriptions" {
         "ps-i1-predict-sub-debug" = {
             topic = "ps-i1-predict"
         }
+        "ps-i1-train-sub-debug" = {
+            topic = "ps-i1-train"
+        }
     }
 }
 

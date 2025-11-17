@@ -9,36 +9,39 @@ from kfp.dsl import (
 
 @component(
     base_image="europe-west6-docker.pkg.dev/af-finanzen/af-finanzen-mlops/transak-i1-train-predict:latest",
-    packages_to_install=["pandas", "numpy", "gcsfs"],
+    packages_to_install=["pandas", "numpy", "google-cloud-bigquery"],
 )
 def create_monitoring_baseline_op(
+    project_id: str,
     predictions_artifact: Input[Artifact],
     monitoring_baseline: Output[Dataset],
+    labels_query: str
 ):
     """
     Creates a monitoring baseline dataset from batch prediction results.
     The batch prediction output is expected to contain both the original instance and the prediction logits.
 
     Args:
+        project_id (str): The GCP project ID.
         predictions_artifact (Input[Artifact]): The artifact from the batch prediction job.
                                                 The component expects the prediction files to be
                                                 locally available at predictions_artifact.path.
-        class_labels (Input[Artifact]): The artifact containing the mapping from class IDs to class labels.
         monitoring_baseline (Output[Dataset]): The output dataset containing the baseline data (features + prediction).
     """
-    import json
     import logging
     import numpy as np
     import pandas as pd
     from pathlib import Path
+    from google.cloud import bigquery
 
     logging.basicConfig(level=logging.INFO)
 
-    # --- 1. Load label mapping ---
-    with open(class_labels.path, "r") as f:
-        label_mapping_str_keys = json.load(f)
-    label_mapping = {int(k): v for k, v in label_mapping_str_keys.items()}
-    logging.info(f"Loaded label mapping: {label_mapping}")
+    # --- 1. Load label mapping from BigQuery ---
+    bq_client = bigquery.Client(project=project_id)
+    query_job = bq_client.query(labels_query)
+    labels_df = query_job.to_dataframe()
+    label_mapping = labels_df.set_index('id')['name'].to_dict()
+    logging.info(f"Loaded label mapping from BigQuery: {label_mapping}")
 
     # --- 2. Read predictions from local path ---
     prediction_dir = Path(predictions_artifact.path)

@@ -63,7 +63,7 @@ def setup_monitoring_op(
             # ml_monitoring.spec.FieldSchema(name="started_year", data_type="integer"),
             # ml_monitoring.spec.FieldSchema(name="started_month", data_type="integer"),
             # ml_monitoring.spec.FieldSchema(name="started_day", data_type="integer"),
-            ml_monitoring.spec.FieldSchema(name="started_weekday", data_type="integer"),
+            ml_monitoring.spec.FieldSchema(name="started_weekday", data_type="categorical"),
             # ml_monitoring.spec.FieldSchema(name="first_started_year", data_type="integer"),
             # ml_monitoring.spec.FieldSchema(name="first_started_month", data_type="integer"),
             # ml_monitoring.spec.FieldSchema(name="first_started_day", data_type="integer"),
@@ -97,9 +97,7 @@ def setup_monitoring_op(
     # Define Data Drift Spec for predictions
     prediction_output_drift_spec = ml_monitoring.spec.DataDriftSpec(
         categorical_metric_type="l_infinity",
-        #numeric_metric_type="jensen_shannon_divergence",
         default_categorical_alert_threshold=0.3,
-        #default_numeric_alert_threshold=0.3,
     )
 
     # Define Notification Spec

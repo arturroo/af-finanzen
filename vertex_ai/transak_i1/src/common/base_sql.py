@@ -40,7 +40,10 @@ def get_predict_from_sql() -> str:
 
 def get_common_where_sql() -> str:
     return """
-        WHERE type NOT IN ('FEE', 'ATM')
+        WHERE 
+            type NOT IN ('FEE', 'ATM') -- less then 10 examples of each type
+            AND ABS(amount) < 900 -- outliers
+            -- AND month < 202501 -- only for demonstration purposes to train bad model
     """
 
 def train_data_query() -> str:
@@ -69,24 +72,23 @@ def predict_data_query() -> str:
 
 def get_monitoring_feature_selection_sql() -> str:
     """Returns the feature selection part of the monitoring query."""
-    return "SELECT t1.*"
+    return "SELECT PREDICTIONS.*"
 
 def get_monitoring_label_selection_sql() -> str:
     """Returns the label selection part of the monitoring query."""
-    return ", t2.name AS i1_pred_label"
+    return ", LABELS.name AS i1_pred_label"
 
 def get_monitoring_from_sql() -> str:
     """Returns the FROM and JOIN clauses for the monitoring query."""
     return """
-        FROM `af-finanzen.transak.i1_predictions` AS t1
-        LEFT JOIN `af-finanzen.transak.i1_labels` AS t2 ON t1.i1_pred_label_id = t2.id
+        FROM `{table_placeholder}` AS PREDICTIONS
+        LEFT JOIN `af-finanzen.transak.i1_labels` AS LABELS ON PREDICTIONS.i1_pred_label_id = LABELS.id
     """
 
 def get_monitoring_where_sql() -> str:
     """Returns the WHERE clause for the monitoring query."""
     return """
-        WHERE t1.started_year = DIV({month_placeholder}, 100)
-          AND t1.started_month = MOD({month_placeholder}, 100)
+        WHERE PREDICTIONS.month = {month_placeholder}
     """
 
 def monitoring_query() -> str:
