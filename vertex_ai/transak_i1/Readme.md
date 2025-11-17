@@ -21,6 +21,8 @@ This project goes beyond a simple training script and implements a full MLOps wo
 
 * **Wide & Deep Architecture:** The model combines the "memorization" power of a wide linear model with the "generalization" power of a deep neural network. The wide path uses a `HashedCrossing` of the transaction `type` and `description` to learn specific rules, while the deep path learns complex patterns from a rich set of engineered features.
 
+![Model Architecture](media/i1_model_keras_deep_wide_combined_subclasses.png)
+
 * **Advanced Feature Engineering:** All preprocessing is handled by custom Keras layers, making the model self-contained and eliminating training-serving skew.
     * **`CyclicalFeature` Layer:** A custom subclassed layer to transform date components (month, day, weekday) into `sin`/`cos` representations, allowing the model to understand cyclical patterns.
     * **`AmountFeatures` Layer:** A custom layer to generate both a `log1p` transformed amount (to handle skewed distributions) and a binary sign feature.
