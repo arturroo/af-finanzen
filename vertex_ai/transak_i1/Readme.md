@@ -125,3 +125,44 @@ The prediction pipeline is designed to run automatically in an event-driven work
         python -m pipelines.pipeline_train submit
         ```
 
+### Manual Retraining Trigger for Testing
+
+You can manually trigger the training pipeline to test the automated retraining loop that is normally initiated by model monitoring when data drift is detected. This process involves simulating a drift event.
+
+1.  **Create a Simulated Anomaly File**:
+    Create a file named `anomalies.json`. This file simulates the output of a model monitoring job that has detected drift. The key is to set a `value` in the `driftMeasurements` that is higher than its corresponding `threshold`.
+
+    **`anomalies.json` Example:**
+    ```json
+    {
+      "driftSkewInfo": [
+        {
+          "path": { "step": ["description"] },
+          "driftMeasurements": [
+            {
+              "type": "L_INFTY",
+              "value": 0.4,
+              "threshold": 0.3
+            }
+          ]
+        }
+      ]
+    }
+    ```
+
+2.  **Upload the File to GCS**:
+    Upload the simulated anomaly file to a test location in your GCS bucket.
+
+    ```bash
+    gsutil cp anomalies.json gs://af-finanzen-mlops/test/anomalies.json
+    ```
+
+3.  **Publish a Pub/Sub Message**:
+    Use the `gcloud` CLI to publish a message to the `ps-i1-train` topic. The message payload must contain the GCS path to the `anomalies.json` file you just uploaded. This mimics the action of the Google Cloud Monitoring notification channel.
+
+    ```bash
+    gcloud pubsub topics publish ps-i1-train --message '{"anomalies": "gs://af-finanzen-mlops/test/anomalies.json"}' --project af-finanzen
+    ```
+
+    This command will trigger the `cf-i1-train` Cloud Function, which in turn will start a new run of the training pipeline, which you can observe in the Vertex AI Pipelines console.
+

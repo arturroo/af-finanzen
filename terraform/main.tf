@@ -180,3 +180,10 @@ resource "google_monitoring_notification_channel" "i1-drift_retraining_channel" 
     topic = module.pubsub.topics["ps-i1-train"].id
   }
 }
+
+resource "google_pubsub_topic_iam_member" "monitoring_pubsub_publisher" {
+  project = var.project_id
+  topic   = module.pubsub.topics["ps-i1-train"].name
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:service-819397114258@gcp-sa-monitoring-notification.iam.gserviceaccount.com"
+}
