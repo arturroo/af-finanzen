@@ -2,7 +2,7 @@
 # __copyright__ = "Copyright 2025, The AF Finanzen Project"
 # __credits__ = ["Artur Fejklowicz", "Joi"]
 # __license__ = "GPLv3"
-# __version__ = "2.0.0"
+# __version__ = "2.1.0"
 # __maintainer__ = "Artur Fejklowicz"
 # __status__ = "Production"
 
@@ -15,6 +15,7 @@ from datetime import datetime
 
 import google.cloud.logging
 from google.cloud import aiplatform, storage
+from vertexai.resources.preview import ml_monitoring
 
 # --- Constants ---
 PROJECT_ID = os.environ.get("PROJECT_ID", "af-finanzen")
@@ -32,20 +33,50 @@ logging.basicConfig(level=logging.INFO)
 
 
 def parse_pubsub_message(event: dict) -> dict:
-    """Parses the Pub/Sub message to extract the data payload."""
+    """Parses the Pub/Sub message to extract the data payload.
+
+    Expected Pub/Sub message data (after base64 decoding) for Model Monitoring:
+    ```json
+    {
+      "subject": "Vertex AI Model Monitoring Job anomalies detected",
+      "details": {
+        "model_monitoring_job_name": "projects/819397114258/locations/europe-west6/modelMonitors/5392497603822747648/modelMonitoringJobs/1003317554485133312",
+        "model_monitoring_job_url": "https://console.cloud.google.com/vertex-ai/locations/europe-west6/model-monitors/5392497603822747648/model-monitoring-jobs/1003317554485133312?project=819397114258",
+        "model_monitoring_job_create_time": "2025-11-18 08:21:20",
+        "model_name": "projects/819397114258/locations/europe-west6/models/5048491201817214976 @42"
+      }
+    }
+    ```
+    """
     logging.info("Parsing Pub/Sub message...")
+
+    if "attributes" in event:
+        logging.info("Message attributes: %s", json.dumps(event["attributes"], indent=2))
+    else:
+        logging.info("No attributes found in message.")
+
     message_data = base64.b64decode(event['data']).decode('utf-8')
+    logging.info(f"Raw message data: {message_data}")
     message_json = json.loads(message_data)
     logging.info("Message received:")
     logging.info(json.dumps(message_json, indent=2))
+
+    # The message from Cloud Monitoring log-based alert
+    if "jsonPayload" in message_json and "anomalyGcsFolder" in message_json["jsonPayload"]:
+        anomaly_gcs_folder = message_json["jsonPayload"]["anomalyGcsFolder"]
+        anomalies_gcs_path = f"{anomaly_gcs_folder}/anomalies.json"
+        return {"type": "gcs", "path": anomalies_gcs_path}
     
-    if "anomalies" not in message_json:
-        raise ValueError("Pub/Sub message is missing the 'anomalies' key.")
-        
-    return message_json
+    # The message from Model Monitoring email/pubsub notification
+    elif "details" in message_json and "model_monitoring_job_name" in message_json["details"]:
+        job_name = message_json["details"]["model_monitoring_job_name"]
+        return {"type": "api", "job_name": job_name}
+    
+    else:
+        raise ValueError("Pub/Sub message has an unrecognized format.")
 
 
-def check_for_drift(anomalies_gcs_path: str) -> bool:
+def check_for_drift_from_gcs(anomalies_gcs_path: str) -> bool:
     """
     Downloads anomalies.json from GCS and checks for drift against its internal thresholds.
 
@@ -68,30 +99,117 @@ def check_for_drift(anomalies_gcs_path: str) -> bool:
 
     anomalies_data = json.loads(blob.download_as_string())
     
-    # The anomalies.json contains a 'driftSkewInfo' list
-    if "driftSkewInfo" not in anomalies_data:
-        logging.info("No 'driftSkewInfo' found in anomalies.json. No drift detected.")
+    if "featureAnomalies" not in anomalies_data:
+        logging.info("No 'featureAnomalies' found in anomalies.json. No drift detected.")
         return False
 
-    for feature_info in anomalies_data["driftSkewInfo"]:
-        feature_name = feature_info["path"]["step"][0] # e.g., "description" or "type"
-        
-        for measurement in feature_info["driftMeasurements"]:
-            drift_value = measurement.get("value")
-            drift_threshold = measurement.get("threshold")
+    for feature_anomaly in anomalies_data["featureAnomalies"]:
+        feature_name = feature_anomaly.get("featureDisplayName")
+        deviation = feature_anomaly.get("deviation")
+        threshold = feature_anomaly.get("threshold")
 
-            if drift_value is not None and drift_threshold is not None:
-                if drift_value > drift_threshold:
-                    logging.warning(
-                        f"Drift detected! Feature '{feature_name}' has a drift value of {drift_value}, "
-                        f"which is above its calculated threshold of {drift_threshold}."
-                    )
-                    return True
-            else:
-                logging.warning(f"Drift measurement for feature '{feature_name}' missing 'value' or 'threshold': {measurement}")
+        if deviation is not None and threshold is not None:
+            if deviation > threshold:
+                logging.warning(
+                    f"Drift detected! Feature '{feature_name}' has a deviation of {deviation}, "
+                    f"which is above its threshold of {threshold}."
+                )
+                return True
+        else:
+            logging.warning(f"Drift measurement for feature '{feature_name}' missing 'deviation' or 'threshold': {feature_anomaly}")
             
     logging.info("No feature drift detected above the calculated thresholds.")
     return False
+
+
+def check_for_drift_from_api(model_monitoring_job_name: str) -> bool:
+    """
+    Checks for drift by searching for alerts from a specific model monitoring job.
+
+    Args:
+        model_monitoring_job_name: The resource name of the model monitoring job.
+
+    Returns:
+        True if drift is detected, False otherwise.
+
+    Example structure of an alert object within 'model_monitoring_alerts' list:
+    ```python
+    {
+        "stats_name": "amount",
+        "objective_type": "raw-feature-drift",
+        "alert_time": {
+            "seconds": 1763482880,
+            "nanos": 928797000
+        },
+        "anomaly": {
+            "tabular_anomaly": {
+                "summary": "The approximate Jensen-Shannon divergence is 0.475309, above the threshold 0.300000.",
+                "anomaly": 0.475309,
+                "trigger_time": {
+                    "seconds": 1763482880,
+                    "nanos": 928797000
+                },
+                "condition": {
+                    "threshold": 0.3
+                }
+            },
+            "model_monitoring_job": "projects/819397114258/locations/europe-west6/modelMonitors/5392497603822747648/modelMonitoringJobs/1003317554485133312"
+        }
+    }
+    ```
+    """
+    logging.info(f"Checking for drift for job '{model_monitoring_job_name}' using search_alerts...")
+    
+    # projects/{p}/locations/{l}/modelMonitors/{m}/modelMonitoringJobs/{j}
+    parts = model_monitoring_job_name.split('/')
+    if len(parts) != 8 or parts[4] != "modelMonitors":
+        raise ValueError(f"Invalid model_monitoring_job_name format: {model_monitoring_job_name}")
+    
+    project_id = parts[1]
+    location = parts[3]
+    monitor_id = parts[5]
+
+    aiplatform.init(project=project_id, location=location)
+    monitor = ml_monitoring.ModelMonitor(monitor_id)
+    
+    alerts = monitor.search_alerts(
+        model_monitoring_job_name=model_monitoring_job_name,
+        objective_type='raw-feature-drift'
+    )
+
+    logging.info(f"search_alerts returned: {alerts}")
+    logging.info(f"Type of search_alerts return: {type(alerts)}")
+
+    # The search_alerts method returns a dictionary where the alert objects
+    # are in the 'model_monitoring_alerts' key.
+    if not alerts or "model_monitoring_alerts" not in alerts or not alerts["model_monitoring_alerts"]:
+        logging.info("No alerts found for this monitoring job. No significant drift detected.")
+        return False
+
+    drift_found = False
+    for alert in alerts["model_monitoring_alerts"]:
+        try:
+            feature_name = alert.stats_name
+            # The .anomaly field is the deviation value itself, not an object.
+            deviation = alert.anomaly.tabular_anomaly.anomaly
+            threshold = alert.anomaly.tabular_anomaly.condition.threshold
+
+            logging.info(f"Checking feature '{feature_name}': Deviation={deviation}, Threshold={threshold}")
+            if deviation > threshold:
+                logging.warning(
+                    f"Drift detected! Feature '{feature_name}' has a deviation of {deviation}, "
+                    f"which is above its threshold of {threshold}."
+                )
+                drift_found = True
+
+        except AttributeError as e:
+            logging.warning(f"Could not parse alert structure. Error: {e}. Alert object: {alert}")
+            continue
+
+    if not drift_found:
+        logging.info("No feature drift detected above thresholds in the found alerts.")
+        
+    return drift_found
 
 
 def trigger_training_pipeline():
@@ -116,8 +234,8 @@ def trigger_training_pipeline():
 def main(event, context):
     """
     Cloud Function entry point.
-    - Parses Pub/Sub message for anomalies.json path.
-    - Checks for model drift.
+    - Parses Pub/Sub message.
+    - Checks for model drift using the Vertex AI API or GCS.
     - Triggers a new training pipeline run if drift is detected.
     """
     logging.info(f"start: EventID: {context.event_id}, EventType: {context.event_type}")
@@ -125,10 +243,14 @@ def main(event, context):
     try:
         # 1. Parse and Validate Input
         message = parse_pubsub_message(event)
-        anomalies_path = message["anomalies"]
-
-        # 2. Business Logic: Check for Drift
-        drift_detected = check_for_drift(anomalies_path)
+        
+        drift_detected = False
+        if message["type"] == "api":
+            drift_detected = check_for_drift_from_api(message["job_name"])
+        elif message["type"] == "gcs":
+            drift_detected = check_for_drift_from_gcs(message["path"])
+        else:
+            raise ValueError(f"Unknown message type from parser: {message.get('type')}")
 
         # 3. Conditional Action: Trigger Pipeline
         if drift_detected:

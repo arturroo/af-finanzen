@@ -3,7 +3,7 @@
     "name": "tid",
     "type": "INTEGER",
     "mode": "NULLABLE",
-    "description": "Input Feature"
+    "description": "Technical. Unique transaction id. Join key for revolut raw data."
   },
   {
     "name": "type",
@@ -76,6 +76,12 @@
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "Input Feature"
+  },
+  {
+    "name": "month",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Technical. Month for which the data from Revolut was downloaded (YYYYmm as integer). From my experience, this is date when the transaction was completed, but it is not directly listed in Revolut documentation."
   },
   {
     "name": "i1_pred_label_id",

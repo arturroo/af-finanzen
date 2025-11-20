@@ -56,6 +56,7 @@ def train_data_query() -> str:
         {get_label_selection_sql()}
         {get_train_from_sql()}
         {get_common_where_sql()}
+        AND i1_true_label IS NOT NULL -- only labeled data (excludes data processed currently by HumanInTheLoop)
     """
 
 def predict_data_query() -> str:

@@ -128,14 +128,9 @@ def run_monitoring_op(
 
     # The anomalies file will be created at a predictable path based on the output_spec.
     # The actual path includes the job ID and 'feature_drift' objective.
-    logging.info(f"target_monitor vars: {vars(target_monitor)}")
-    
-    monitor_id = target_monitor.resource_name.split('/')[-1]
-    logging.info(f"monitor_id: {monitor_id}")
+    logging.info(f"target_monitor name: {target_monitor.name}")
     logging.info(f"monitoring_job_id: {monitoring_job_id}")
-
-    anomalies_file_uri = f"{anomalies.uri}/{target_monitor.name}/model_monitoring/{monitor_id}/tabular/jobs/{monitoring_job_id}/feature_drift/anomalies.json"
-    # anomalies.uri = anomalies_file_uri
+    anomalies_file_uri = f"{anomalies.uri}/model_monitoring/{target_monitor.name}/tabular/jobs/{monitoring_job_id}/feature_drift/anomalies.json"
     logging.info(f"Anomalies file URI: {anomalies_file_uri}")
 
     # The _dashboard_uri() attribute is not available. Constructing the URL manually.
@@ -144,3 +139,5 @@ def run_monitoring_op(
         f"model-monitoring/{monitoring_job.resource_name}?project={project}"
     )
     logging.info(f"View job details in the console: {dashboard_uri}")
+
+    anomalies.metadata["anomalies_file_uri"] = anomalies_file_uri

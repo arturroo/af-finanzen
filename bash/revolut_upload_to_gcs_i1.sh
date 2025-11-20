@@ -3,7 +3,7 @@
 revolut_home=~/Downloads/revolut
 processed_months=()
 
-for file in `ls ${revolut_home}/*/account-statement*`; do
+for file in `ls ${revolut_home}/*/*account-statement*`; do
     # Extract the dates
     start_date=$(echo "$file" | cut -d_ -f2)
     end_date=$(echo "$file" | cut -d_ -f3)
@@ -47,6 +47,6 @@ unique_months=$(printf "%s\n" "${processed_months[@]}" | sort -u)
 for month in $unique_months; do
     echo "Creating sentinel file for month $month"
     echo "$month" > "/tmp/_SUCCESS"
-    gsutil cp "/tmp/_SUCCESS" "gs://af-finanzen-banks/raw/revolut/_SUCCESS"
+    gsutil cp "/tmp/_SUCCESS" "_SUCCESS"
     rm "/tmp/_SUCCESS"
 done
