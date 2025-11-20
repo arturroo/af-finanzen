@@ -33,7 +33,21 @@ logging.basicConfig(level=logging.INFO)
 
 
 def parse_pubsub_message(event: dict) -> dict:
-    """Parses the Pub/Sub message to extract the data payload."""
+    """Parses the Pub/Sub message to extract the data payload.
+
+    Expected Pub/Sub message data (after base64 decoding) for Model Monitoring:
+    ```json
+    {
+      "subject": "Vertex AI Model Monitoring Job anomalies detected",
+      "details": {
+        "model_monitoring_job_name": "projects/819397114258/locations/europe-west6/modelMonitors/5392497603822747648/modelMonitoringJobs/1003317554485133312",
+        "model_monitoring_job_url": "https://console.cloud.google.com/vertex-ai/locations/europe-west6/model-monitors/5392497603822747648/model-monitoring-jobs/1003317554485133312?project=819397114258",
+        "model_monitoring_job_create_time": "2025-11-18 08:21:20",
+        "model_name": "projects/819397114258/locations/europe-west6/models/5048491201817214976 @42"
+      }
+    }
+    ```
+    """
     logging.info("Parsing Pub/Sub message...")
 
     if "attributes" in event:
@@ -117,6 +131,32 @@ def check_for_drift_from_api(model_monitoring_job_name: str) -> bool:
 
     Returns:
         True if drift is detected, False otherwise.
+
+    Example structure of an alert object within 'model_monitoring_alerts' list:
+    ```python
+    {
+        "stats_name": "amount",
+        "objective_type": "raw-feature-drift",
+        "alert_time": {
+            "seconds": 1763482880,
+            "nanos": 928797000
+        },
+        "anomaly": {
+            "tabular_anomaly": {
+                "summary": "The approximate Jensen-Shannon divergence is 0.475309, above the threshold 0.300000.",
+                "anomaly": 0.475309,
+                "trigger_time": {
+                    "seconds": 1763482880,
+                    "nanos": 928797000
+                },
+                "condition": {
+                    "threshold": 0.3
+                }
+            },
+            "model_monitoring_job": "projects/819397114258/locations/europe-west6/modelMonitors/5392497603822747648/modelMonitoringJobs/1003317554485133312"
+        }
+    }
+    ```
     """
     logging.info(f"Checking for drift for job '{model_monitoring_job_name}' using search_alerts...")
     
@@ -150,7 +190,8 @@ def check_for_drift_from_api(model_monitoring_job_name: str) -> bool:
     for alert in alerts["model_monitoring_alerts"]:
         try:
             feature_name = alert.stats_name
-            deviation = alert.anomaly.tabular_anomaly.anomaly.number_value
+            # The .anomaly field is the deviation value itself, not an object.
+            deviation = alert.anomaly.tabular_anomaly.anomaly
             threshold = alert.anomaly.tabular_anomaly.condition.threshold
 
             logging.info(f"Checking feature '{feature_name}': Deviation={deviation}, Threshold={threshold}")
