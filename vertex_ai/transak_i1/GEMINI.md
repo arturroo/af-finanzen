@@ -104,11 +104,11 @@ The entire system is orchestrated by **Vertex AI Pipelines**, with each step run
     * **Output:** A BigQuery table with the predictions.
 
 6.  **`monitoring_op`**
-    * **Action:** **TODO:** Not yet implemented. This step will trigger a **Vertex AI Model Monitoring** job, comparing the statistics of the prediction data against the original training data to detect feature drift and training-serving skew (continuous evaluation).
+    * **Action:** This step triggers a **Vertex AI Model Monitoring** job, comparing the statistics of the prediction data against the original training data to detect feature drift and training-serving skew (continuous evaluation).
 
 7.  **`trigger_retraining_op` (Conditional Step)**
-    * **Action:** **TODO:** Not yet implemented. A `dsl.Condition` that checks `if drift_detected`.
-    * If true, this component makes an API call to **trigger a new run of our Training & Promotion Pipeline**, creating a fully automated, closed-loop MLOps system.
+
+    *   **Action:** This step is conceptually implemented by the `cf-i1-train` Cloud Function. If model drift is detected by the monitoring process, the Cloud Function triggers a new run of the Training & Promotion Pipeline, creating a fully automated, closed-loop MLOps system.
 
 ---
 
@@ -191,11 +191,11 @@ graph TD
 ## TODOs / Future Work
 
 - **Automate Infrastructure & Triggers:**
-  - [ ] Define Vertex AI Pipeline jobs and their schedules using Terraform.
+  - [x] Define Vertex AI Pipeline jobs and their schedules using Terraform.
   - [x] Implement a Cloud Function to automatically trigger the prediction pipeline when new data arrives in Cloud Storage.
 
 - **Enhance Monitoring & Evaluation:**
-  - [ ] Fully automate the Vertex AI Model Monitoring job to run after predictions and fix drift detection logic.
+  - [x] Fully automate the Vertex AI Model Monitoring job to run after predictions and fix drift detection logic.
   - [ ] Update the evaluation component to generate a confusion matrix image (`.png`).
   - [ ] Log the confusion matrix as an artifact in the Vertex AI Model Registry for each new model version.
 
