@@ -41,12 +41,22 @@ for file in `ls ${revolut_home}/*/*account-statement*`; do
     gsutil mv $new_file "gs://af-finanzen-banks/raw/revolut/month=${month}/account=${currency}/"
 done
 
+# Determine Region to write (Default: europe-west6)
+# User can provide a region as the first argument to the script
+target_region="${1:-europe-west6}"
+
 # Get unique months that were processed
 unique_months=$(printf "%s\n" "${processed_months[@]}" | sort -u)
 
 for month in $unique_months; do
-    echo "Creating sentinel file for month $month"
-    echo "$month" > "/tmp/_SUCCESS"
-    gsutil cp "/tmp/_SUCCESS" "_SUCCESS"
+    echo "Creating sentinel file for month $month with region $target_region"
+    # Write month on first line, region on second line
+    printf "%s\n%s" "$month" "$target_region" > "/tmp/_SUCCESS"
+    
+    echo "Uploading _SUCCESS file..."
+    full_cmd="gsutil cp /tmp/_SUCCESS gs://af-finanzen-banks/raw/revolut/month=${month}/_SUCCESS"
+    echo "Executing: $full_cmd"
+    $full_cmd
+    
     rm "/tmp/_SUCCESS"
 done
