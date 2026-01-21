@@ -228,6 +228,11 @@ variable "views" {
         #     dataset_id = "monatsabschluss"
         #     query_file = "bq-views/monatsabschluss.revolut_abrechnung_v.sql"
         # }
+        "sankey_v" = {
+            description = "Sankey data from all months (Sheet sourced)"
+            dataset_id = "monatsabschluss"
+            query_file = "bq-views/monatsabschluss.sankey_v.sql"
+        }
         "i1_data_revolut_v" = {
             description = "Revolut transactions unique description indicator first_started. Iteration 1 of agile plan."
             dataset_id = "transak"

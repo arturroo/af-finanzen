@@ -31,6 +31,8 @@ EXPERIMENT_NAME = f"{PIPELINE_NAME}-experiment"
 PIPELINE_JOB_NAME = f"{PIPELINE_NAME}-job"
 DATASET = "transak"
 TABLE_NAME = "i1_predictions"
+CPU_LIMIT = "4"
+MEMORY_LIMIT = "15G"
 
 
 # The @dsl.pipeline decorator defines this function as a pipeline blueprint.
@@ -45,7 +47,14 @@ def transak_i1_pipeline_predict(
     region: str = REGION, # type: ignore
     model_name: str = "transak-i1-train-model",
     month: Optional[int] = None,
+    cpu_limit: Optional[str] = None,
+    memory_limit: Optional[str] = None,
 ):
+    if cpu_limit is None:
+        cpu_limit = CPU_LIMIT
+    if memory_limit is None:
+        memory_limit = MEMORY_LIMIT
+
     # project_id = PROJECT_ID
     # model_name = "transak-i1-train-model"
     # month = "202508"
@@ -61,7 +70,7 @@ def transak_i1_pipeline_predict(
         project_id=project_id,
         month=month,
         query=predict_data_query()
-    )
+    ).set_cpu_limit(os.getenv("CPU_LIMIT", cpu_limit)).set_memory_limit(os.getenv("MEMORY_LIMIT", memory_limit))
     get_prediction_data.set_display_name("Get Prediction Data")
 
     # 3. Get Production Model
@@ -69,7 +78,7 @@ def transak_i1_pipeline_predict(
         project=project_id,
         location=region,
         model_display_name=model_name
-    )
+    ).set_cpu_limit(os.getenv("CPU_LIMIT", cpu_limit)).set_memory_limit(os.getenv("MEMORY_LIMIT", memory_limit))
     get_prod_model.set_display_name("Get Production Model")
 
     # Batch Prediction for Evaluation (Production Model)
@@ -79,7 +88,7 @@ def transak_i1_pipeline_predict(
         vertex_model=get_prod_model.outputs['production_model'],
         test_data=get_prediction_data.outputs['prediction_data'],
         experiment_name=""
-    )
+    ).set_cpu_limit(os.getenv("CPU_LIMIT", cpu_limit)).set_memory_limit(os.getenv("MEMORY_LIMIT", memory_limit))
     batch_predict_production.set_display_name("Batch Predict: Production")
 
     # 5. Save Predictions
@@ -90,7 +99,7 @@ def transak_i1_pipeline_predict(
         bigquery_prediction_table_fqtn=f"{project_id}.{DATASET}.{TABLE_NAME}",
         pipeline_run_id=dsl.PIPELINE_JOB_NAME_PLACEHOLDER,
         month=month,
-    )
+    ).set_cpu_limit(os.getenv("CPU_LIMIT", cpu_limit)).set_memory_limit(os.getenv("MEMORY_LIMIT", memory_limit))
     save_predictions.set_display_name("Save Predictions")
 
     # 6. Run Monitoring
@@ -102,7 +111,7 @@ def transak_i1_pipeline_predict(
         job_display_name=f"transak-i1-monitor-{month}",
         month=month,
         query_template=monitoring_query()
-    )
+    ).set_cpu_limit(os.getenv("CPU_LIMIT", cpu_limit)).set_memory_limit(os.getenv("MEMORY_LIMIT", memory_limit))
     run_monitoring.set_display_name("Run Model Monitoring")
 
 
