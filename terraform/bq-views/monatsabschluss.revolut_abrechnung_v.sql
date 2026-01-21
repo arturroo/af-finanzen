@@ -19,6 +19,30 @@ SELECT
   , i1_true_label
   , status
   , comment
+FROM `af-finanzen.monatsabschluss.revolut_abrechnung_202512`
+WHERE month IS NOT NULL
+UNION ALL
+SELECT 
+    CAST(tid AS INT64) AS tid
+  , type
+  , product
+  , started
+  , completed
+  , description
+  , amount
+  , fee
+  , currency
+  , state
+  , balance
+  , account
+  , month
+  , first_started
+  , NULL i0_true_label
+  , NULL i0_pred_label
+  , i0_new_label
+  , i1_true_label
+  , status
+  , comment
 FROM `af-finanzen.monatsabschluss.revolut_abrechnung_202511`
 WHERE month IS NOT NULL
 UNION ALL

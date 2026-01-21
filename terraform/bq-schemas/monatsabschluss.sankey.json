@@ -1,0 +1,23 @@
+[
+  {
+    "name": "description",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "amount",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "Decimal(5,2)"
+  },
+  {
+    "name": "new_label",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "comment",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  }
+]
