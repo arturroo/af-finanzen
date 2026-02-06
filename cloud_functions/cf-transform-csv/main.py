@@ -15,10 +15,6 @@ from datetime import datetime, timezone
 from FileContent import FileContent
 
 
-# Cloud logger
-log_client = google.cloud.logging.Client()
-log_client.setup_logging()
-
 # Get logger
 logging.getLogger("backoff").addHandler(logging.StreamHandler())
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +23,8 @@ BUCKET_ID = "af-finanzen-banks"
 
 
 def start(event, context):
+    log_client = google.cloud.logging.Client()
+    log_client.setup_logging()
     try:
         attributes = event["attributes"]
         bucket_id = attributes["bucketId"]
