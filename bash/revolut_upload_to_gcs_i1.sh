@@ -54,7 +54,7 @@ for month in $unique_months; do
     printf "%s\n%s" "$month" "$target_region" > "/tmp/_SUCCESS"
     
     echo "Uploading _SUCCESS file..."
-    full_cmd="gsutil cp /tmp/_SUCCESS gs://af-finanzen-banks/raw/revolut/month=${month}/_SUCCESS"
+    full_cmd="gsutil cp /tmp/_SUCCESS gs://af-finanzen-banks/raw/revolut/_SUCCESS"
     echo "Executing: $full_cmd"
     $full_cmd
     
