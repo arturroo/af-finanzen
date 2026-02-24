@@ -2,7 +2,7 @@
 .vscode/
 
 # Data
-*.csv
+# *.csv
 
 # models
 *.h5
@@ -200,3 +200,11 @@ vertex_ai/transak_i1/transak-i1-train.json
 *.pb
 variables.data-00000-of-00001
 variables.index
+
+
+# special
+vertex_ai/transak_i1/transak-i1-train.json
+vertex_ai/transak_i1/media/*
+anomalies.json
+GDG_Zurich_November_2025_Meetup.md
+generate_skewed_data.py

@@ -1,0 +1,44 @@
+[
+  {
+    "name": "datum",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Transaction date in DD.MM.YYYY format."
+  },
+  {
+    "name": "bewegungstyp",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Type of movement (e.g., Buchung, Kontoübertrag)."
+  },
+  {
+    "name": "avisierungstext",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Detailed notification text, includes account numbers and user memos."
+  },
+  {
+    "name": "gutschrift",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "description": "Credit amount in CHF."
+  },
+  {
+    "name": "lastschrift",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "description": "Debit amount in CHF (negative value)."
+  },
+  {
+    "name": "label",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User-defined labels from the PostFinance interface."
+  },
+  {
+    "name": "kategorie",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Automatic spending category assigned by PostFinance."
+  }
+]

@@ -1,0 +1,26 @@
+[
+    {
+        "name": "iban",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "PostFinance IBAN to map."
+    },
+    {
+        "name": "name",
+        "type": "STRING",
+        "mode": "REQUIRED",
+        "description": "Name of the account owner or description."
+    },
+    {
+        "name": "mutation_ts",
+        "type": "TIMESTAMP",
+        "mode": "REQUIRED",
+        "description": "Timestamp of record ingestion/update in UTC."
+    },
+    {
+        "name": "comments",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Optional notes or comments."
+    }
+]

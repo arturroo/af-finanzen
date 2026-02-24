@@ -164,6 +164,24 @@ resource "google_bigquery_table" "view" {
     depends_on = [google_bigquery_dataset.dataset]
 }
 
+resource "google_bigquery_table" "dependent_view" {
+    for_each    = var.dependent_views
+    project     = var.project_id
+    dataset_id  = try(each.value["dataset_id"], null)
+    table_id    = each.key
+    description = try(each.value["description"], null)
+    deletion_protection  = try(each.value["deletion_protection"], null)
+
+    view {
+        query = templatefile(each.value["query_file"], {project_id = var.project_id})
+        use_legacy_sql = try(each.value["use_legacy_sql"], false)
+    }
+    depends_on = [
+        google_bigquery_dataset.dataset,
+        google_bigquery_table.view
+    ]
+}
+
 resource "google_vertex_ai_tensorboard" "default" {
   display_name = "vertex-ai-tensorboard-transak"
   project      = var.project_id

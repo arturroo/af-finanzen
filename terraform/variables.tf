@@ -34,6 +34,11 @@ variable "gs_notifications" {
             object_name_prefix = "raw/ubs/"
             topic = "ps-transform-csv"
         }
+        "postfinance" = {
+            bucket = "banks"
+            object_name_prefix = "raw/postfinance/"
+            topic = "ps-pf-csv-transform"
+        }
     }
 }
 
@@ -89,6 +94,11 @@ variable "internal_tables" {
             description = "ZAK transactions"
             dataset_id = "banks"
             schema = "bq-schemas/banks.zak.json"
+        }
+        "postfinance_iban_mapping" = {
+            description = "Mapping of related IBANs to account names for PostFinance"
+            dataset_id = "banks"
+            schema = "bq-schemas/banks.postfinance_iban_mapping.json"
         }
         "i0_predictions" = {
             description = "Transak predictions. Iteration 0 of agile plan."
@@ -170,6 +180,27 @@ variable "external_tables" {
 
             }
         }
+        "postfinance" = {
+            description = "PostFinance transactions raw data"
+            dataset_id = "banks"
+            external_data_configuration = {
+                autodetect  = false
+                schema      = "bq-schemas/banks.postfinance.json"
+                source_uris = [
+                    "gs://af-finanzen-banks/postfinance/*",
+                ]
+                csv_options = {
+                    quote               = "\""
+                    encoding            = "UTF-8"
+                    field_delimiter     = ";"
+                    skip_leading_rows   = 1
+                }
+                hive_partitioning_options = {
+                    mode = "CUSTOM"
+                    source_uri_prefix = "gs://af-finanzen-banks/postfinance/{month:Integer}/{account:String}"
+                }
+            }
+        }
         # TODO Schama, Credentials
         # "revolut_mapping" = {
         #     description = "Transaction description to budget account mapping "
@@ -217,10 +248,10 @@ variable "views" {
             dataset_id = "banks"
             query_file = "bq-views/banks.revolut_v.sql"
         }
-        "sankey_v" = {
-            description = "Diagram Sankey data"
-            dataset_id = "analytics"
-            query_file = "bq-views/analytics.sankey_v.sql"
+        "postfinance_iban_mapping_v" = {
+            description = "Mapping of related IBANs to account names for PostFinance, converting UTC timestamp to Zurich timezone datetimes"
+            dataset_id = "banks"
+            query_file = "bq-views/banks.postfinance_iban_mapping_v.sql"
         }
         # AF20250327 Problem with organization and gdrive, see Gemini Chat. Created manually.
         # "revolut_abrechnung_v" = {
@@ -232,6 +263,17 @@ variable "views" {
             description = "Sankey data from all months (Sheet sourced)"
             dataset_id = "monatsabschluss"
             query_file = "bq-views/monatsabschluss.sankey_v.sql"
+        }
+    }
+}
+
+variable "dependent_views" {
+    description = "BigQuery views that depend on other views"
+    default = {
+        "postfinance_v" = {
+            description = "PostFinance transactions with virtual TID and regex text splitting"
+            dataset_id = "banks"
+            query_file = "bq-views/banks.postfinance_v.sql"
         }
         "i1_data_revolut_v" = {
             description = "Revolut transactions unique description indicator first_started. Iteration 1 of agile plan."
@@ -259,6 +301,11 @@ variable "topics" {
                 "publisher" = "monitoring"
             }
         }
+        "ps-pf-csv-transform" = {
+            labels = {
+                "publisher" = "gs"
+            }
+        }
     }
 }
 
@@ -277,6 +324,9 @@ variable "subscriptions" {
         "ps-i1-train-sub-debug" = {
             topic = "ps-i1-train"
         }
+        "ps-pf-csv-transform-sub-gcf" = {
+            topic = "ps-pf-csv-transform"
+        }
     }
 }
 
@@ -290,6 +340,9 @@ variable "bindings" {
       }
       "gs--ps-i1-train" = {
           topic = "ps-i1-train"
+      }
+      "gs--ps-pf-csv-transform" = {
+          topic = "ps-pf-csv-transform"
       }
   }
 }
@@ -334,6 +387,11 @@ variable "cf_names" {
         "cf-pdf2bq" = {
             trigger_type = "http"
             labels = {}
+        }
+        "cf-pf-csv-transform" = {
+            gen = 2
+            trigger_type = "pubsub"
+            labels = {"publisher" = "gs"}
         }
 
     }
