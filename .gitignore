@@ -2,7 +2,7 @@
 .vscode/
 
 # Data
-# *.csv
+*.csv
 
 # models
 *.h5
