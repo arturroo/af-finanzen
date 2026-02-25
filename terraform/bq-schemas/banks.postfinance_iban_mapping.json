@@ -12,10 +12,10 @@
         "description": "Name of the account owner or description."
     },
     {
-        "name": "mutation_ts",
+        "name": "cre_ts",
         "type": "TIMESTAMP",
         "mode": "REQUIRED",
-        "description": "Timestamp of record ingestion/update in UTC."
+        "description": "Creation timestamp of the record in UTC."
     },
     {
         "name": "comments",

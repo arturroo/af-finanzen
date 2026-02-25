@@ -46,5 +46,9 @@ SELECT
 FROM base b
 LEFT JOIN `${project_id}.banks.postfinance_iban_mapping_v` m_rel
   ON b.related_iban = m_rel.iban
+  AND b.date >= m_rel.valid_from 
+  AND b.date < m_rel.valid_to
 LEFT JOIN `${project_id}.banks.postfinance_iban_mapping_v` m_acc
   ON b.account_iban = m_acc.iban
+  AND b.date >= m_acc.valid_from 
+  AND b.date < m_acc.valid_to
