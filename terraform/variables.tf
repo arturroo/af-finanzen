@@ -338,9 +338,6 @@ variable "bindings" {
       "gs--ps-i1-predict" = {
           topic = "ps-i1-predict"
       }
-      "gs--ps-i1-train" = {
-          topic = "ps-i1-train"
-      }
       "gs--ps-pf-csv-transform" = {
           topic = "ps-pf-csv-transform"
       }

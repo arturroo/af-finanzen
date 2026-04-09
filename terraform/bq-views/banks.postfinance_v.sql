@@ -21,11 +21,7 @@ WITH base AS (
     label,
     kategorie AS category,
     REGEXP_EXTRACT(avisierungstext, r'(CH[A-Z0-9]{19})') AS related_iban,
-    REGEXP_REPLACE(
-      avisierungstext, 
-      r'^KONTOÜBERTRAG (?:AUF|VON) CH[A-Z0-9]{19} ?', 
-      ''
-    ) AS memo,
+    avisierungstext AS description,
     month,
     account AS account_iban
   FROM `${project_id}.banks.postfinance`
@@ -33,16 +29,16 @@ WITH base AS (
 SELECT
   b.tid,
   b.date,
-  b.amount,
   b.type,
   b.label,
   b.category,
-  m_rel.name AS related_iban_name,
+  b.amount,
+  b.description,
   b.related_iban,
-  b.memo,
-  b.month,
+  m_rel.name AS related_iban_name,
+  b.account_iban,
   m_acc.name AS account_iban_name,
-  b.account_iban
+  b.month
 FROM base b
 LEFT JOIN `${project_id}.banks.postfinance_iban_mapping_v` m_rel
   ON b.related_iban = m_rel.iban
