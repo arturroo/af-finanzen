@@ -14,15 +14,6 @@ from functools import singledispatch
 from typing import overload
 
 
-# Cloud logger
-log_client = google.cloud.logging.Client()
-log_client.setup_logging()
-
-# Get logger
-logging.getLogger("backoff").addHandler(logging.StreamHandler())
-logging.basicConfig(level=logging.INFO)
-
-
 class FileContent:
     bucket: google.cloud.storage.Bucket
     bucket_id: str
@@ -36,9 +27,17 @@ class FileContent:
     def __init__(self, bucket_id, object_id):
         self.bucket_id = bucket_id
         self.object_id = object_id
+        self.year = ""
+        self.month = ""
         self._initialize_bucket()
         self._load_blob()
         self.content = self.content_raw.split("\n")
+        self.extract_date()
+        log_client = google.cloud.logging.Client()
+        log_client.setup_logging()
+        logging.getLogger("backoff").addHandler(logging.StreamHandler())
+        logging.basicConfig(level=logging.INFO)
+
 
     def _get_content(self):
         return f"\n".join(self.content)
@@ -69,11 +68,14 @@ class FileContent:
         logging.info(f"extract_date: start")
         print(f"extract_date: start")
 
-        first_data_row = self.content[1]
-        einkaufsdatum = first_data_row.split(";")[3]
-        self.year = einkaufsdatum.split(".")[2]
-        self.month = einkaufsdatum.split(".")[1]
-        print(f"extract_date: year {self.year} month {self.month}")
+        if len(self.content) > 1:
+            first_data_row = self.content[1]
+            if len(first_data_row.split(";")) > 3:
+                einkaufsdatum = first_data_row.split(";")[3]
+                if len(einkaufsdatum.split(".")) > 2:
+                    self.year = einkaufsdatum.split(".")[2]
+                    self.month = einkaufsdatum.split(".")[1]
+                    print(f"extract_date: year {self.year} month {self.month}")
 
         return self
 
